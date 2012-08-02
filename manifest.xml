@@ -1,0 +1,20 @@
+<package>
+  <description brief="RViz plugin covariance">
+
+     Plug-in providing geometry_msgs/PoseWithCovariance display.
+
+  </description>
+  <author>Thomas Moulard</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/rviz_plugin_covariance</url>
+
+  <export>
+      <rosdoc config="${prefix}/rosdoc.yaml"/>
+      <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+
+  <depend package="geometry_msgs"/>
+  <depend package="rviz"/>
+  <rosdep name="eigen" />
+</package>
