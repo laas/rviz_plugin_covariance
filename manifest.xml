@@ -14,6 +14,7 @@
       <rviz plugin="${prefix}/plugin_description.xml"/>
   </export>
 
+  <depend package="roscpp"/>
   <depend package="geometry_msgs"/>
   <depend package="rviz"/>
   <rosdep name="eigen" />

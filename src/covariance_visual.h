@@ -32,10 +32,16 @@ namespace rviz_plugin_covariance
 
     void setColor (float r, float g, float b, float a);
 
+    void setScale (float scale)
+    {
+      scaleFactor_ = scale;
+    }
+
   private:
     rviz::Shape* shape_;
     Ogre::SceneNode* frame_node_;
     Ogre::SceneManager* scene_manager_;
+    float scaleFactor_;
   };
 } // end namespace rviz_plugin_covariance
 

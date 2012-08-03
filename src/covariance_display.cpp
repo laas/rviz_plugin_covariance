@@ -16,11 +16,18 @@ namespace rviz_plugin_covariance
 {
   CovarianceDisplay::CovarianceDisplay ()
     : Display (),
-      visual_ (0),
-      scene_node_ (0),
+      visual_ (),
+      scene_node_ (),
+      sub_ (),
+      tf_filter_ (),
       messages_received_ (0),
       color_ (.8, .2, .8),
-      alpha_ (1.0)
+      alpha_ (1.),
+      scale_ (2.),
+      color_property_ (),
+      topic_property_ (),
+      alpha_property_ (),
+      scale_property_ ()
   {}
 
   void CovarianceDisplay::onInitialize()
@@ -47,7 +54,6 @@ namespace rviz_plugin_covariance
     delete tf_filter_;
   }
 
-  // Clear the visuals by deleting their objects.
   void CovarianceDisplay::clear()
   {
     delete visual_;
@@ -65,10 +71,8 @@ namespace rviz_plugin_covariance
     topic_ = topic;
     subscribe ();
 
-    // Broadcast the fact that the variable has changed.
     propertyChanged (topic_property_);
 
-    // Make sure rviz renders the next time it gets a chance.
     causeRender ();
   }
 
@@ -76,44 +80,48 @@ namespace rviz_plugin_covariance
   {
     color_ = color;
 
-    propertyChanged( color_property_ );
-    updateColorAndAlpha();
-    causeRender();
+    propertyChanged (color_property_);
+    updateColorAndAlphaAndScale ();
+    causeRender ();
   }
 
-  void CovarianceDisplay::setAlpha( float alpha )
+  void CovarianceDisplay::setAlpha (float alpha)
   {
     alpha_ = alpha;
 
-    propertyChanged( alpha_property_ );
-    updateColorAndAlpha();
-    causeRender();
+    propertyChanged (alpha_property_);
+    updateColorAndAlphaAndScale ();
+    causeRender ();
   }
 
-  // Set the current color and alpha values for each visual.
-  void CovarianceDisplay::updateColorAndAlpha()
+  void CovarianceDisplay::setScale (float scale)
+  {
+    scale_ = scale;
+
+    propertyChanged (scale_property_);
+    updateColorAndAlphaAndScale ();
+    causeRender ();
+  }
+
+  void CovarianceDisplay::updateColorAndAlphaAndScale ()
   {
     if (visual_)
-      visual_->setColor (color_.r_, color_.g_, color_.b_, alpha_);
+      {
+	visual_->setColor (color_.r_, color_.g_, color_.b_, alpha_);
+	visual_->setScale (scale_);
+      }
   }
 
   void CovarianceDisplay::subscribe()
   {
-    // If we are not actually enabled, don't do it.
-    if ( !isEnabled() )
-      {
-	return;
-      }
-
-    // Try to subscribe to the current topic name (in ``topic_``).  Make
-    // sure to catch exceptions and set the status to a descriptive
-    // error message.
+    if (!isEnabled())
+      return;
     try
       {
 	sub_.subscribe( update_nh_, topic_, 10 );
 	setStatus( rviz::status_levels::Ok, "Topic", "OK" );
       }
-    catch( ros::Exception& e )
+    catch (ros::Exception& e)
       {
 	setStatus( rviz::status_levels::Error, "Topic",
 		   std::string( "Error subscribing: " ) + e.what() );
@@ -138,7 +146,7 @@ namespace rviz_plugin_covariance
 
   void CovarianceDisplay::fixedFrameChanged()
   {
-    tf_filter_->setTargetFrame( fixed_frame_ );
+    tf_filter_->setTargetFrame (fixed_frame_);
     clear();
   }
 
@@ -164,18 +172,14 @@ namespace rviz_plugin_covariance
 	return;
       }
 
-    CovarianceVisual* visual = visual_;
-    if (visual == NULL)
-      {
-	visual = new CovarianceVisual
-	  (vis_manager_->getSceneManager (), scene_node_);
-	visual_ = visual;
-      }
-
-    visual->setMessage (msg);
-    visual->setFramePosition (position);
-    visual->setFrameOrientation (orientation);
-    visual->setColor (color_.r_, color_.g_, color_.b_, alpha_);
+    if (!visual_)
+      visual_ = new CovarianceVisual
+	(vis_manager_->getSceneManager (), scene_node_);
+    visual_->setMessage (msg);
+    visual_->setFramePosition (position);
+    visual_->setFrameOrientation (orientation);
+    visual_->setColor (color_.r_, color_.g_, color_.b_, alpha_);
+    visual_->setScale (scale_);
   }
 
   void CovarianceDisplay::reset ()
@@ -197,38 +201,49 @@ namespace rviz_plugin_covariance
     setPropertyHelpText
       (topic_property_,
        "geometry_msgs::PoseWithCovarianceStamped topic to subscribe to.");
-    rviz::ROSTopicStringPropertyPtr topic_prop = topic_property_.lock();
+    rviz::ROSTopicStringPropertyPtr topic_prop = topic_property_.lock ();
     topic_prop->setMessageType
       (ros::message_traits::datatype
-       <geometry_msgs::PoseWithCovarianceStamped>());
+       <geometry_msgs::PoseWithCovarianceStamped> ());
 
     color_property_ =
       property_manager_->createProperty<rviz::ColorProperty>
       ("Color",
        property_prefix_,
-       boost::bind( &CovarianceDisplay::getColor, this ),
-       boost::bind( &CovarianceDisplay::setColor, this, _1 ),
+       boost::bind (&CovarianceDisplay::getColor, this),
+       boost::bind (&CovarianceDisplay::setColor, this, _1),
        parent_category_,
        this);
     setPropertyHelpText
-      (color_property_, "Color to draw the acceleration arrows.");
+      (color_property_, "Color to draw the ellipse.");
 
     alpha_property_ =
       property_manager_->createProperty<rviz::FloatProperty>
       ("Alpha",
        property_prefix_,
-       boost::bind( &CovarianceDisplay::getAlpha, this ),
-       boost::bind( &CovarianceDisplay::setAlpha, this, _1 ),
+       boost::bind (&CovarianceDisplay::getAlpha, this),
+       boost::bind (&CovarianceDisplay::setAlpha, this, _1),
        parent_category_,
        this);
     setPropertyHelpText
       (alpha_property_, "0 is fully transparent, 1.0 is fully opaque.");
+
+    scale_property_ =
+      property_manager_->createProperty<rviz::FloatProperty>
+      ("Scale",
+       property_prefix_,
+       boost::bind (&CovarianceDisplay::getScale, this),
+       boost::bind (&CovarianceDisplay::setScale, this, _1),
+       parent_category_,
+       this);
+    setPropertyHelpText
+      (scale_property_, "Ellipse scale factor.");
   }
 
 } // end namespace rviz_plugin_covariance
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_DECLARE_CLASS (rviz_plugin_covariance,
-			 Covariance,
+			 PoseWithCovariance,
 			 rviz_plugin_covariance::CovarianceDisplay,
 			 rviz::Display)
