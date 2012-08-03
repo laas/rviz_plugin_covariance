@@ -38,17 +38,17 @@ namespace rviz_plugin_covariance
     Ogre::Vector3 position (p.x, p.y, p.z);
     shape_->setPosition (position);
 
-    Eigen::Matrix4d covariance;
-    Eigen::Vector4d eigenValues;
-    Eigen::Matrix4d eigenVectors;
+    Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero ();
+    Eigen::Vector3d eigenValues = Eigen::Vector3d::Identity ();
+    Eigen::Matrix3d eigenVectors = Eigen::Matrix3d::Zero ();
 
-    // Copy covariance.
-    for (unsigned i = 0; i < 4; ++i)
-      for (unsigned j = 0; j < 4; ++j)
-	covariance (i, j) = msg->pose.covariance[i * 4 + j];
+    // Copy covariance (position only for now).
+    for (unsigned i = 0; i < 3; ++i)
+      for (unsigned j = 0; j < 3; ++j)
+	covariance (i, j) = msg->pose.covariance[i * 6 + j];
 
     // Compute eigen values and eigen vectors.
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d>
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>
       eigensolver (covariance);
 
     if (eigensolver.info () == Eigen::Success)
