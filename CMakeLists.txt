@@ -17,6 +17,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 set(SOURCE_FILES
   src/covariance_display.cpp
   src/covariance_visual.cpp
+  src/odometry_display.cpp
 )
 
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)

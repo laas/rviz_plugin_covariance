@@ -2,6 +2,7 @@
 #ifndef COVARIANCE_VISUAL_HH
 # define COVARIANCE_VISUAL_HH
 # include <geometry_msgs/PoseWithCovarianceStamped.h>
+# include <nav_msgs/Odometry.h>
 
 namespace Ogre
 {
@@ -25,6 +26,12 @@ namespace rviz_plugin_covariance
     virtual ~CovarianceVisual ();
 
     void setMessage
+      (const geometry_msgs::PoseWithCovariance& msg);
+    void setMessage
+      (const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
+    void setMessage
+      (const nav_msgs::Odometry::ConstPtr& msg);
+    void setData
       (const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
 
     void setFramePosition (const Ogre::Vector3& position);
@@ -39,6 +46,7 @@ namespace rviz_plugin_covariance
 
   private:
     rviz::Shape* shape_;
+    rviz::Shape* orientationShape_;
     Ogre::SceneNode* frame_node_;
     Ogre::SceneManager* scene_manager_;
     float scaleFactor_;
