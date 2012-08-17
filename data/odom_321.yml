@@ -1,8 +1,8 @@
 # Type: nav_msgs/Odometry
-# Odometry messages with X covariance twice larger than others.
+# Odometry messages with three different pose covariance.
 #
 # rostopic pub /base_odometry nav_msgs/Odometry -f \
-#  `rospack find rviz_plugin_covariance`/data/odom_x.yml
+#  `rospack find rviz_plugin_covariance`/data/odom_321.yml
 header:
   stamp: now
   frame_id: "/odom"
@@ -18,12 +18,12 @@ pose:
       y: 0.0
       z: 0.0
       w: 1.0
-  covariance: [4.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-               0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-               0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-               0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-               0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-               0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+  covariance: [3.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+               0.0,  2.0, 0.0, 0.0, 0.0, 0.0,
+               0.0,  0.0, 1.0, 0.0, 0.0, 0.0,
+               0.0,  0.0, 0.0, 1.0, 0.0, 0.0,
+               0.0,  0.0, 0.0, 0.0, 1.0, 0.0,
+               0.0,  0.0, 0.0, 0.0, 0.0, 1.0]
 twist: 
   twist: 
     linear: 

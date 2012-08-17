@@ -12,6 +12,7 @@ namespace Ogre
 
 namespace rviz
 {
+  class Axes;
   class Shape;
 }
 
@@ -45,9 +46,12 @@ namespace rviz_plugin_covariance
     }
 
   private:
+    rviz::Axes* axes_;
     rviz::Shape* shape_;
     rviz::Shape* orientationShape_;
     Ogre::SceneNode* frame_node_;
+    Ogre::SceneNode* positionNode_;
+    Ogre::SceneNode* orientationNode_;
     Ogre::SceneManager* scene_manager_;
     float scaleFactor_;
   };

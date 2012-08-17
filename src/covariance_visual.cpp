@@ -5,6 +5,7 @@
 #include <OGRE/OgreSceneManager.h>
 
 #include <ros/console.h>
+#include <rviz/ogre_helpers/axes.h>
 #include <rviz/ogre_helpers/shape.h>
 
 #include "covariance_visual.h"
@@ -13,21 +14,34 @@ namespace rviz_plugin_covariance
 {
   CovarianceVisual::CovarianceVisual (Ogre::SceneManager* scene_manager,
 				      Ogre::SceneNode* parent_node)
-    : shape_ (),
+    : axes_ (),
+      shape_ (),
       orientationShape_ (),
       frame_node_ (parent_node->createChildSceneNode()),
+      positionNode_ (),
+      orientationNode_ (),
       scene_manager_ (scene_manager),
       scaleFactor_ (1.)
   {
+    axes_ = new rviz::Axes
+      (scene_manager_, frame_node_);
+
+    positionNode_ = axes_->getSceneNode ()->createChildSceneNode ();
+    orientationNode_ = axes_->getSceneNode ()->createChildSceneNode();
+
     shape_ = new rviz::Shape
-      (rviz::Shape::Sphere, scene_manager_, frame_node_);
+      (rviz::Shape::Sphere, scene_manager_, positionNode_);
     orientationShape_ = new rviz::Shape
-      (rviz::Shape::Cone, scene_manager_, frame_node_);
+      (rviz::Shape::Cone, scene_manager_, orientationNode_);
   }
 
   CovarianceVisual::~CovarianceVisual ()
   {
     delete shape_;
+    delete orientationShape_;
+    scene_manager_->destroySceneNode (orientationNode_);
+    scene_manager_->destroySceneNode (positionNode_);
+    delete axes_;
     scene_manager_->destroySceneNode (frame_node_);
   }
 
@@ -71,12 +85,10 @@ namespace rviz_plugin_covariance
      std::pair<Eigen::Matrix3d, Eigen::Vector3d>& pair)
     {
       Ogre::Matrix3 rotation;
+      pair.first.normalize ();
       for (unsigned i = 0; i < 3; ++i)
-	{
-	  pair.first.row (i).normalize ();
-	  for (unsigned j = 0; j < 3; ++j)
-	    rotation[i][j] = pair.first (i, j);
-	}
+	for (unsigned j = 0; j < 3; ++j)
+	  rotation[i][j] = pair.first (i, j);
       return Ogre::Quaternion (rotation);
     }
   } // end of anonymous namespace.
@@ -85,19 +97,19 @@ namespace rviz_plugin_covariance
   CovarianceVisual::setMessage
   (const geometry_msgs::PoseWithCovariance& msg)
   {
-    // Base position.
+    // Construct pose position and orientation.
     const geometry_msgs::Point& p = msg.pose.position;
     Ogre::Vector3 position (p.x, p.y, p.z);
+    Ogre::Quaternion orientation
+      (msg.pose.orientation.w,
+       msg.pose.orientation.x,
+       msg.pose.orientation.y,
+       msg.pose.orientation.z);
 
-    // Base rotation.
-    Ogre::Quaternion q (msg.pose.orientation.w,
-			msg.pose.orientation.x,
-			msg.pose.orientation.y,
-			msg.pose.orientation.z);
+    // Set position and orientation for axes scene node.
+    axes_->setPosition (position);
+    axes_->setOrientation (orientation);
 
-    // Set position for both shapes.
-    shape_->setPosition (position);
-    orientationShape_->setPosition (position);
 
     // Compute eigen values and vectors for both shapes.
     std::pair<Eigen::Matrix3d, Eigen::Vector3d>
@@ -107,37 +119,59 @@ namespace rviz_plugin_covariance
       orientationEigenVectorsAndValues
       (computeEigenValuesAndVectors (msg, 3));
 
-    shape_->setOrientation
-      (q * computeRotation (msg, positionEigenVectorsAndValues));
-    orientationShape_->setOrientation
-      (q * computeRotation (msg, orientationEigenVectorsAndValues));
+    Ogre::Quaternion positionQuaternion
+      (computeRotation (msg, positionEigenVectorsAndValues));
+    Ogre::Quaternion orientationQuaternion
+      (computeRotation (msg, orientationEigenVectorsAndValues));
+
+    positionNode_->setOrientation (positionQuaternion);
+    orientationNode_->setOrientation (orientationQuaternion);
 
     // Compute scaling.
     Ogre::Vector3 positionScaling
-      (positionEigenVectorsAndValues.second[0] * scaleFactor_,
-       positionEigenVectorsAndValues.second[1] * scaleFactor_,
-       positionEigenVectorsAndValues.second[2] * scaleFactor_);
+      (std::sqrt (positionEigenVectorsAndValues.second[0]),
+       std::sqrt (positionEigenVectorsAndValues.second[1]),
+       std::sqrt (positionEigenVectorsAndValues.second[2]));
+    positionScaling *= scaleFactor_;
 
     Ogre::Vector3 orientationScaling
-      (orientationEigenVectorsAndValues.second[0] * scaleFactor_,
-       orientationEigenVectorsAndValues.second[1] * scaleFactor_,
-       orientationEigenVectorsAndValues.second[2] * scaleFactor_);
+      (std::sqrt (orientationEigenVectorsAndValues.second[0]),
+       std::sqrt (orientationEigenVectorsAndValues.second[1]),
+       std::sqrt (orientationEigenVectorsAndValues.second[2]));
+    orientationScaling *= scaleFactor_;
 
     // Set the scaling.
-    shape_->setScale (positionScaling);
-    orientationShape_->setScale (orientationScaling);
+    positionNode_->setScale (positionScaling);
+    orientationNode_->setScale (orientationScaling);
 
     // Debugging.
     ROS_DEBUG_STREAM_THROTTLE
       (1.,
-       "Upper-left part 3x3 eigen values:\n"
+       "Position:\n"
+       << position << "\n"
+       << "Positional part 3x3 eigen values:\n"
        << positionEigenVectorsAndValues.second << "\n"
-       << "Upper-left part 3x3 eigen vectors:\n"
+       << "Positional part 3x3 eigen vectors:\n"
        << positionEigenVectorsAndValues.first << "\n"
-       << "Lower-right part 3x3 eigen values:\n"
+       << "Sphere orientation:\n"
+       << positionQuaternion << "\n"
+       << positionQuaternion.getRoll () << " "
+       << positionQuaternion.getPitch () << " "
+       << positionQuaternion.getYaw () << "\n"
+       << "Sphere scaling:\n"
+       << positionScaling << "\n"
+       << "Rotational part 3x3 eigen values:\n"
        << orientationEigenVectorsAndValues.second << "\n"
-       << "Lower-right part 3x3 eigen vectors:\n"
-       << orientationEigenVectorsAndValues.first);
+       << "Rotational part 3x3 eigen vectors:\n"
+       << orientationEigenVectorsAndValues.first << "\n"
+       << "Cone orientation:\n"
+       << orientationQuaternion << "\n"
+       << orientationQuaternion.getRoll () << " "
+       << orientationQuaternion.getPitch () << " "
+       << orientationQuaternion.getYaw () << "\n"
+       << "Cone scaling:\n"
+       << orientationScaling
+       );
   }
 
   void
