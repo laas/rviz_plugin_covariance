@@ -85,7 +85,6 @@ namespace rviz_plugin_covariance
      std::pair<Eigen::Matrix3d, Eigen::Vector3d>& pair)
     {
       Ogre::Matrix3 rotation;
-      pair.first.normalize ();
       for (unsigned i = 0; i < 3; ++i)
 	for (unsigned j = 0; j < 3; ++j)
 	  rotation[i][j] = pair.first (i, j);
