@@ -13,7 +13,7 @@
 namespace rviz_plugin_covariance
 {
   CovarianceVisual::CovarianceVisual (Ogre::SceneManager* scene_manager,
-				      Ogre::SceneNode* parent_node)
+                                      Ogre::SceneNode* parent_node)
     : axes_ (),
       shape_ (),
       orientationShape_ (),
@@ -57,27 +57,22 @@ namespace rviz_plugin_covariance
       Eigen::Matrix3d eigenVectors = Eigen::Matrix3d::Zero ();
 
       for (unsigned i = 0; i < 3; ++i)
-	for (unsigned j = 0; j < 3; ++j)
-	  covariance (i, j) =
-	    msg.covariance[(i + offset) * 6 + j + offset];
+        for (unsigned j = 0; j < 3; ++j)
+          covariance (i, j) = msg.covariance[(i + offset) * 6 + j + offset];
 
       // Compute eigen values and eigen vectors.
-      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver
-	(covariance);
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance);
 
       if (eigensolver.info () == Eigen::Success)
-	{
-	  eigenValues = eigensolver.eigenvalues();
-	  eigenVectors = eigensolver.eigenvectors();
-	}
+      {
+        eigenValues = eigensolver.eigenvalues();
+        eigenVectors = eigensolver.eigenvectors();
+      }
       else
-	ROS_WARN_THROTTLE
-	  (1,
-	   "failed to compute eigen vectors/values."
-	   "Is the covariance matrix correct?");
+        ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values."
+                          "Is the covariance matrix correct?");
 
       return std::make_pair (eigenVectors, eigenValues);
-
     }
 
     Ogre::Quaternion computeRotation
@@ -86,8 +81,8 @@ namespace rviz_plugin_covariance
     {
       Ogre::Matrix3 rotation;
       for (unsigned i = 0; i < 3; ++i)
-	for (unsigned j = 0; j < 3; ++j)
-	  rotation[i][j] = pair.first (i, j);
+        for (unsigned j = 0; j < 3; ++j)
+          rotation[i][j] = pair.first (i, j);
       return Ogre::Quaternion (rotation);
     }
   } // end of anonymous namespace.
@@ -106,9 +101,22 @@ namespace rviz_plugin_covariance
        msg.pose.orientation.z);
 
     // Set position and orientation for axes scene node.
-    axes_->setPosition (position);
-    axes_->setOrientation (orientation);
+    if(!position.isNaN())
+      axes_->setPosition (position);
+    else
+      ROS_WARN_STREAM_THROTTLE(1, "position contains NaN: " << position);
+    if(!orientation.isNaN())
+      axes_->setOrientation (orientation);
+    else
+      ROS_WARN_STREAM_THROTTLE(1, "orientation contains NaN: " << orientation);
 
+    // check for NaN in covariance
+    for (unsigned i = 0; i < 3; ++i) {
+      if(isnan(msg.covariance[i])) {
+        ROS_WARN_THROTTLE(1, "covariance contains NaN");
+        return;
+      }
+    }
 
     // Compute eigen values and vectors for both shapes.
     std::pair<Eigen::Matrix3d, Eigen::Vector3d>
@@ -140,8 +148,15 @@ namespace rviz_plugin_covariance
     orientationScaling *= scaleFactor_;
 
     // Set the scaling.
-    positionNode_->setScale (positionScaling);
-    orientationNode_->setScale (orientationScaling);
+    if(!positionScaling.isNaN())
+      positionNode_->setScale (positionScaling);
+    else
+      ROS_WARN_STREAM("positionScaling contains NaN: " << positionScaling);
+
+    if(!orientationScaling.isNaN())
+      orientationNode_->setScale (orientationScaling);
+    else
+      ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
 
     // Debugging.
     ROS_DEBUG_STREAM_THROTTLE
