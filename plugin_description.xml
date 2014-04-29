@@ -5,6 +5,7 @@
     <description>
       Display geometry_msgs/PoseWithCovarianceStamped.
     </description>
+    <message_type>geometry_msgs/PoseWithCovarianceStamped</message_type>
   </class>
 
   <class name="rviz_plugin_covariance/OdometryDisplay"
@@ -13,5 +14,6 @@
     <description>
       Display nav_msgs/Odometry.
     </description>
+    <message_type>nav_msgs/Odometry</message_type>
   </class>
 </library>

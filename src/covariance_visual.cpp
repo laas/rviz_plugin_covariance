@@ -1,222 +1,234 @@
-#include <Eigen/Dense>
-
 #include <OGRE/OgreVector3.h>
 #include <OGRE/OgreSceneNode.h>
 #include <OGRE/OgreSceneManager.h>
 
-#include <ros/console.h>
 #include <rviz/ogre_helpers/axes.h>
 #include <rviz/ogre_helpers/shape.h>
 
 #include "covariance_visual.h"
 
+#include <ros/console.h>
+#include <Eigen/Dense>
+
 namespace rviz_plugin_covariance
 {
-  CovarianceVisual::CovarianceVisual (Ogre::SceneManager* scene_manager,
-                                      Ogre::SceneNode* parent_node)
-    : axes_ (),
-      shape_ (),
-      orientationShape_ (),
-      frame_node_ (parent_node->createChildSceneNode()),
-      positionNode_ (),
-      orientationNode_ (),
-      scene_manager_ (scene_manager),
-      scaleFactor_ (1.)
-  {
-    axes_ = new rviz::Axes
-      (scene_manager_, frame_node_);
-
-    positionNode_ = axes_->getSceneNode ()->createChildSceneNode ();
-    orientationNode_ = axes_->getSceneNode ()->createChildSceneNode();
-
-    shape_ = new rviz::Shape
-      (rviz::Shape::Sphere, scene_manager_, positionNode_);
-    orientationShape_ = new rviz::Shape
-      (rviz::Shape::Cone, scene_manager_, orientationNode_);
-  }
-
-  CovarianceVisual::~CovarianceVisual ()
-  {
-    delete shape_;
-    delete orientationShape_;
-    scene_manager_->destroySceneNode (orientationNode_);
-    scene_manager_->destroySceneNode (positionNode_);
-    delete axes_;
-    scene_manager_->destroySceneNode (frame_node_);
-  }
-
-  namespace
-  {
-    std::pair<Eigen::Matrix3d, Eigen::Vector3d>
-    computeEigenValuesAndVectors
-    (const geometry_msgs::PoseWithCovariance& msg,
-     unsigned offset)
+    // Anonymous namespace with helper functions
+    namespace
     {
-      Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero ();
-      Eigen::Vector3d eigenValues = Eigen::Vector3d::Identity ();
-      Eigen::Matrix3d eigenVectors = Eigen::Matrix3d::Zero ();
+        std::pair<Eigen::Matrix3d, Eigen::Vector3d> computeEigenValuesAndVectors
+                                                    (const geometry_msgs::PoseWithCovariance& msg,
+                                                     unsigned offset)
+        {
+            Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
+            Eigen::Vector3d eigenValues = Eigen::Vector3d::Identity();
+            Eigen::Matrix3d eigenVectors = Eigen::Matrix3d::Zero();
 
-      for (unsigned i = 0; i < 3; ++i)
-        for (unsigned j = 0; j < 3; ++j)
-          covariance (i, j) = msg.covariance[(i + offset) * 6 + j + offset];
+            for(unsigned i = 0; i < 3; ++i)
+                for(unsigned j = 0; j < 3; ++j)
+                    covariance(i, j) = msg.covariance[(i + offset) * 6 + j + offset];
 
-      // Compute eigen values and eigen vectors.
-      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance);
+            // Compute eigen values and eigen vectors.
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance);
 
-      if (eigensolver.info () == Eigen::Success)
-      {
-        eigenValues = eigensolver.eigenvalues();
-        eigenVectors = eigensolver.eigenvectors();
-      }
-      else
-        ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values."
-                          "Is the covariance matrix correct?");
+            if (eigensolver.info () == Eigen::Success)
+            {
+                eigenValues = eigensolver.eigenvalues();
+                eigenVectors = eigensolver.eigenvectors();
+            }
+            else
+                ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values. Is the covariance matrix correct?");
 
-      return std::make_pair (eigenVectors, eigenValues);
-    }
+            return std::make_pair (eigenVectors, eigenValues);
+        }
 
-    Ogre::Quaternion computeRotation
-    (const geometry_msgs::PoseWithCovariance& msg,
-     std::pair<Eigen::Matrix3d, Eigen::Vector3d>& pair)
+        Ogre::Quaternion computeRotation
+                         (const geometry_msgs::PoseWithCovariance& msg,
+                          std::pair<Eigen::Matrix3d, Eigen::Vector3d>& pair)
+        {
+            Ogre::Matrix3 rotation;
+
+            for (unsigned i = 0; i < 3; ++i)
+                for (unsigned j = 0; j < 3; ++j)
+                    rotation[i][j] = pair.first(i, j);
+
+
+            if(Ogre::Quaternion(rotation).Norm() != 1.0f)
+            {
+                ROS_WARN("computeRotation found non-unitary quaternion!");
+
+                // Check for swapped eigenvectors within repeated eigenvalues
+                if(pair.second(0) == pair.second(1))
+                {
+                    ROS_WARN("repeated eigen values 0 and 1... attempting swap");
+                    for (unsigned i = 0; i < 3; ++i)
+                    {
+                        rotation[i][0] = pair.first(i, 1);
+                        rotation[i][1] = pair.first(i, 0);
+                    }
+                }
+                else if(pair.second(1) == pair.second(2))
+                {
+                    ROS_WARN("repeated eigen values 1 and 2... attempting swap");
+                    for (unsigned i = 0; i < 3; ++i)
+                    {
+                        rotation[i][1] = pair.first(i, 2);
+                        rotation[i][2] = pair.first(i, 1);
+                    }
+                }
+            }
+
+            return Ogre::Quaternion(rotation);
+        }
+    } // end of anonymous namespace.
+
+    CovarianceVisual::CovarianceVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node)
     {
-      Ogre::Matrix3 rotation;
-      for (unsigned i = 0; i < 3; ++i)
-        for (unsigned j = 0; j < 3; ++j)
-          rotation[i][j] = pair.first (i, j);
-      return Ogre::Quaternion (rotation);
-    }
-  } // end of anonymous namespace.
+        scene_manager_ = scene_manager;
 
-  void
-  CovarianceVisual::setMessage
-  (const geometry_msgs::PoseWithCovariance& msg)
-  {
-    // Construct pose position and orientation.
-    const geometry_msgs::Point& p = msg.pose.position;
-    Ogre::Vector3 position (p.x, p.y, p.z);
-    Ogre::Quaternion orientation
-      (msg.pose.orientation.w,
-       msg.pose.orientation.x,
-       msg.pose.orientation.y,
-       msg.pose.orientation.z);
+        frame_node_ = parent_node->createChildSceneNode();
 
-    // Set position and orientation for axes scene node.
-    if(!position.isNaN())
-      axes_->setPosition (position);
-    else
-      ROS_WARN_STREAM_THROTTLE(1, "position contains NaN: " << position);
-    if(!orientation.isNaN())
-      axes_->setOrientation (orientation);
-    else
-      ROS_WARN_STREAM_THROTTLE(1, "orientation contains NaN: " << orientation);
+        axes_.reset(new rviz::Axes(scene_manager_, frame_node_));
+        positionNode_ = axes_->getSceneNode()->createChildSceneNode ();
+        orientationNode_ = axes_->getSceneNode()->createChildSceneNode();
 
-    // check for NaN in covariance
-    for (unsigned i = 0; i < 3; ++i) {
-      if(isnan(msg.covariance[i])) {
-        ROS_WARN_THROTTLE(1, "covariance contains NaN");
-        return;
-      }
+        shape_.reset(new rviz::Shape(rviz::Shape::Sphere, scene_manager_, positionNode_));
+        orientationShape_.reset(new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientationNode_));
+
+        scaleFactor_ = 1.0f;
     }
 
-    // Compute eigen values and vectors for both shapes.
-    std::pair<Eigen::Matrix3d, Eigen::Vector3d>
-      positionEigenVectorsAndValues
-      (computeEigenValuesAndVectors (msg, 0));
-    std::pair<Eigen::Matrix3d, Eigen::Vector3d>
-      orientationEigenVectorsAndValues
-      (computeEigenValuesAndVectors (msg, 3));
+    CovarianceVisual::~CovarianceVisual ()
+    {
+        scene_manager_->destroySceneNode (orientationNode_);
+        scene_manager_->destroySceneNode (positionNode_);
+        scene_manager_->destroySceneNode (frame_node_);
+    }
 
-    Ogre::Quaternion positionQuaternion
-      (computeRotation (msg, positionEigenVectorsAndValues));
-    Ogre::Quaternion orientationQuaternion
-      (computeRotation (msg, orientationEigenVectorsAndValues));
+    void CovarianceVisual::setMessage(const geometry_msgs::PoseWithCovariance& msg)
+    {
+        // Construct pose position and orientation.
+        const geometry_msgs::Point& p = msg.pose.position;
+        const geometry_msgs::Quaternion& q = msg.pose.orientation;
 
-    positionNode_->setOrientation (positionQuaternion);
-    orientationNode_->setOrientation (orientationQuaternion);
+        Ogre::Vector3 position(p.x, p.y, p.z);
+        Ogre::Quaternion orientation(q.w, q.x, q.y, q.z);
 
-    // Compute scaling.
-    Ogre::Vector3 positionScaling
-      (std::sqrt (positionEigenVectorsAndValues.second[0]),
-       std::sqrt (positionEigenVectorsAndValues.second[1]),
-       std::sqrt (positionEigenVectorsAndValues.second[2]));
-    positionScaling *= scaleFactor_;
+        // Set position and orientation for axes scene node.
+        if(!position.isNaN())
+            axes_->setPosition(position);
+        else
+            ROS_WARN_STREAM_THROTTLE(1, "position contains NaN: " << position);
 
-    Ogre::Vector3 orientationScaling
-      (std::sqrt (orientationEigenVectorsAndValues.second[0]),
-       std::sqrt (orientationEigenVectorsAndValues.second[1]),
-       std::sqrt (orientationEigenVectorsAndValues.second[2]));
-    orientationScaling *= scaleFactor_;
+        if(!orientation.isNaN())
+            axes_->setOrientation (orientation);
+        else
+            ROS_WARN_STREAM_THROTTLE(1, "orientation contains NaN: " << orientation);
 
-    // Set the scaling.
-    if(!positionScaling.isNaN())
-      positionNode_->setScale (positionScaling);
-    else
-      ROS_WARN_STREAM("positionScaling contains NaN: " << positionScaling);
+        // check for NaN in covariance
+        for (unsigned i = 0; i < 3; ++i)
+        {
+            if(isnan(msg.covariance[i]))
+            {
+                ROS_WARN_THROTTLE(1, "covariance contains NaN");
+                return;
+            }
+        }
 
-    if(!orientationScaling.isNaN())
-      orientationNode_->setScale (orientationScaling);
-    else
-      ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
+        // Compute eigen values and vectors for both shapes.
+        std::pair<Eigen::Matrix3d, Eigen::Vector3d> positionEigenVectorsAndValues(computeEigenValuesAndVectors(msg, 0));
+        std::pair<Eigen::Matrix3d, Eigen::Vector3d> orientationEigenVectorsAndValues(computeEigenValuesAndVectors(msg, 3));
 
-    // Debugging.
-    ROS_DEBUG_STREAM_THROTTLE
-      (1.,
-       "Position:\n"
-       << position << "\n"
-       << "Positional part 3x3 eigen values:\n"
-       << positionEigenVectorsAndValues.second << "\n"
-       << "Positional part 3x3 eigen vectors:\n"
-       << positionEigenVectorsAndValues.first << "\n"
-       << "Sphere orientation:\n"
-       << positionQuaternion << "\n"
-       << positionQuaternion.getRoll () << " "
-       << positionQuaternion.getPitch () << " "
-       << positionQuaternion.getYaw () << "\n"
-       << "Sphere scaling:\n"
-       << positionScaling << "\n"
-       << "Rotational part 3x3 eigen values:\n"
-       << orientationEigenVectorsAndValues.second << "\n"
-       << "Rotational part 3x3 eigen vectors:\n"
-       << orientationEigenVectorsAndValues.first << "\n"
-       << "Cone orientation:\n"
-       << orientationQuaternion << "\n"
-       << orientationQuaternion.getRoll () << " "
-       << orientationQuaternion.getPitch () << " "
-       << orientationQuaternion.getYaw () << "\n"
-       << "Cone scaling:\n"
-       << orientationScaling
-       );
-  }
+        Ogre::Quaternion positionQuaternion(computeRotation(msg, positionEigenVectorsAndValues));
+        Ogre::Quaternion orientationQuaternion(computeRotation(msg, orientationEigenVectorsAndValues));
 
-  void
-  CovarianceVisual::setMessage
-  (const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
-  {
-    setMessage (msg->pose);
-  }
+        positionNode_->setOrientation(positionQuaternion);
+        orientationNode_->setOrientation(orientationQuaternion);
 
-  void
-  CovarianceVisual::setMessage
-  (const nav_msgs::Odometry::ConstPtr& msg)
-  {
-    setMessage (msg->pose);
-  }
+        // Compute scaling.
+        //Ogre::Vector3 axesScaling(1, 1, 1);
 
-  void
-  CovarianceVisual::setFramePosition (const Ogre::Vector3& position)
-  {
-    frame_node_->setPosition (position);
-  }
+        //axesScaling *= scaleFactor_;
 
-  void
-  CovarianceVisual::setFrameOrientation (const Ogre::Quaternion& orientation)
-  {
-    frame_node_->setOrientation (orientation);
-  }
+        Ogre::Vector3 positionScaling
+                      (std::sqrt (positionEigenVectorsAndValues.second[0]),
+                       std::sqrt (positionEigenVectorsAndValues.second[1]),
+                       std::sqrt (positionEigenVectorsAndValues.second[2]));
 
-  void CovarianceVisual::setColor (float r, float g, float b, float a)
-  {
-    shape_->setColor (r, g, b, a);
-    orientationShape_->setColor (r, g, b, a);
-  }
+        positionScaling *= scaleFactor_;
+
+        Ogre::Vector3 orientationScaling
+                      (std::sqrt (orientationEigenVectorsAndValues.second[0]),
+                       std::sqrt (orientationEigenVectorsAndValues.second[1]),
+                       std::sqrt (orientationEigenVectorsAndValues.second[2]));
+
+        orientationScaling *= scaleFactor_;
+
+        // Set the scaling.
+        /*if(!axesScaling.isNaN())
+            axes_->setScale(axesScaling);
+        else
+            ROS_WARN_STREAM("axesScaling contains NaN: " << axesScaling);*/
+
+        if(!positionScaling.isNaN())
+            positionNode_->setScale(positionScaling);
+        else
+            ROS_WARN_STREAM("positionScaling contains NaN: " << positionScaling);
+
+        if(!orientationScaling.isNaN())
+            orientationNode_->setScale(orientationScaling);
+        else
+            ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
+
+        // Debugging.
+        ROS_INFO_STREAM_THROTTLE
+        (1.,
+        "Position:\n"
+        << position << "\n"
+        << "Positional part 3x3 eigen values:\n"
+        << positionEigenVectorsAndValues.second << "\n"
+        << "Positional part 3x3 eigen vectors:\n"
+        << positionEigenVectorsAndValues.first << "\n"
+        << "Sphere orientation:\n"
+        << positionQuaternion << "\n"
+        << positionQuaternion.getRoll () << " "
+        << positionQuaternion.getPitch () << " "
+        << positionQuaternion.getYaw () << "\n"
+        << "Sphere scaling:\n"
+        << positionScaling << "\n"
+        << "Rotational part 3x3 eigen values:\n"
+        << orientationEigenVectorsAndValues.second << "\n"
+        << "Rotational part 3x3 eigen vectors:\n"
+        << orientationEigenVectorsAndValues.first << "\n"
+        << "Cone orientation:\n"
+        << orientationQuaternion << "\n"
+        << orientationQuaternion.getRoll () << " "
+        << orientationQuaternion.getPitch () << " "
+        << orientationQuaternion.getYaw () << "\n"
+        << "Cone scaling:\n"
+        << orientationScaling
+        );
+    }
+
+    void CovarianceVisual::setMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+    {
+        setMessage(msg->pose);
+    }
+
+    void
+    CovarianceVisual::setFramePosition (const Ogre::Vector3& position)
+    {
+        frame_node_->setPosition(position);
+    }
+
+    void
+    CovarianceVisual::setFrameOrientation (const Ogre::Quaternion& orientation)
+    {
+        frame_node_->setOrientation(orientation);
+    }
+
+    void CovarianceVisual::setColor (float r, float g, float b, float a)
+    {
+        shape_->setColor(r, g, b, a);
+        orientationShape_->setColor(r, g, b, a);
+    }
 } // end namespace rviz_plugin_covariance
