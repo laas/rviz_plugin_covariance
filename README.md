@@ -3,9 +3,7 @@ rviz plugin to display pose covariance
 
 This repository provides rviz plugin to display pose covariance information using an ellipsoid and a cone.
 
-The plugin currently supports `geometry_msgs/PoseWithCovariance`, `geometry_msgs/PoseWithCovarianceStamped` and `nav_msgs/Odometry`. 
-
-This work is based on [this discussion] [discussion] and on this [tutorial] [tutorial].
+The plugin currently supports `geometry_msgs/PoseWithCovariance`, `geometry_msgs/PoseWithCovarianceStamped` and `nav_msgs/Odometry`. This work is based on [this discussion] [discussion] and on this [tutorial] [tutorial].
 
 **This package requires at least ROS Fuerte**
 
