@@ -24,13 +24,13 @@ Checkout the hydro branch into a catkin workspace and run catkin_make
 `roscore`
 `rosrun rviz rviz`
 `rosrun rviz_plugin_covariance send_test_msgs.py`
-Add new rviz display of type PoseWithCovariance
-Select the /test_covariance topic
+Add new rviz display of type `PoseWithCovariance`
+Select the `/test_covariance` topic
 
 TO DO: 
 - [ ] write instructions for ROS Fuerte
 - [ ] check if ROS Groovy is supported
-- [ ] migrate nav_msgs/Odometry display to ROS Hydro
+- [ ] migrate `nav_msgs/Odometry` display to ROS Hydro
 - [ ] add code improvements seen in ROS Hydro to older versions
 
 [discussion]: http://geus.wordpress.com/2011/09/15/how-to-represent-a-3d-normal-function-with-ros-rviz/
