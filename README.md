@@ -7,27 +7,30 @@ The plugin currently supports `geometry_msgs/PoseWithCovariance`, `geometry_msgs
 
 **This package requires at least ROS Fuerte**
 
-Getting started with rviz_plugin_covariance:
+<h2>Getting started with rviz_plugin_covariance</h2>
 
-**ROS Fuerte**
+<h3>ROS Fuerte</h3>
 
 (instructions here)
 
-**ROS Hydro**
+<h3>ROS Hydro</h3>
 
-*To build this plugin:*
+<h4>To build this plugin:</h4>
 
 Checkout the hydro branch into a catkin workspace and run catkin_make
 
-*To test this plugin:*
+<h4>To test this plugin:</h4>
 
-`roscore`
-`rosrun rviz rviz`
-`rosrun rviz_plugin_covariance send_test_msgs.py`
+```
+roscore
+rosrun rviz rviz
+rosrun rviz_plugin_covariance send_test_msgs.py
+```
 Add new rviz display of type `PoseWithCovariance`
+
 Select the `/test_covariance` topic
 
-TO DO: 
+<h2>TO DO</h2> 
 - [ ] write instructions for ROS Fuerte
 - [ ] check if ROS Groovy is supported
 - [ ] migrate `nav_msgs/Odometry` display to ROS Hydro
