@@ -1,0 +1,31 @@
+<package>
+  <name>rviz_plugin_covariance</name>
+  <version>0.1.0</version>
+  <description>
+     rviz plugin to display pose covariance information using an ellipsoid and a cone. 
+     Supports geometry_msgs/PoseWithCovariance, geometry_msgs/PoseWithCovarianceStamped and nav_msgs/Odometry.
+  </description>
+  <maintainer email="thomas.moulard@gmail.com">Thomas Moulard</maintainer>
+  <maintainer email="georgebrindeiro@lara.unb.br">George Andrew Brindeiro</maintainer>
+  <license>BSD</license>
+
+  <url>http://ros.org/wiki/rviz_plugin_covariance</url>
+  <author email="thomas.moulard@gmail.com">Thomas Moulard</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>rviz</build_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+
+  <run_depend>rviz</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+
+  <export>
+      <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>

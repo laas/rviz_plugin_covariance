@@ -1,93 +1,47 @@
 // -*- c++-mode -*-
 #ifndef COVARIANCE_DISPLAY_H
-# define COVARIANCE_DISPLAY_H
-# include <message_filters/subscriber.h>
-# include <tf/message_filter.h>
-# include <sensor_msgs/Imu.h>
-# include <rviz/display.h>
+#define COVARIANCE_DISPLAY_H
+
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <rviz/message_filter_display.h>
 
 namespace Ogre
 {
-  class SceneNode;
+    class SceneNode;
+}
+
+namespace rviz
+{
+    class ColorProperty;
+    class FloatProperty;
 }
 
 namespace rviz_plugin_covariance
 {
-  class CovarianceVisual;
+    class CovarianceVisual;
 
-  class CovarianceDisplay: public rviz::Display
+    class CovarianceDisplay: public rviz::MessageFilterDisplay<geometry_msgs::PoseWithCovarianceStamped>
     {
-    public:
-      explicit CovarianceDisplay ();
-      virtual ~CovarianceDisplay ();
+        Q_OBJECT
+        public:
+            CovarianceDisplay();
+            virtual ~CovarianceDisplay();
 
-      virtual void onInitialize ();
-      virtual void fixedFrameChanged ();
-      virtual void reset ();
-      virtual void createProperties ();
+        protected:
+            virtual void onInitialize();
+            virtual void reset();
 
-      void setTopic (const std::string& topic);
+        private Q_SLOTS:
+            void updateColorAndAlphaAndScale();
 
-      const std::string& getTopic () const
-      {
-	return topic_;
-      }
+        private:
+            void processMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
 
-      void setColor (const rviz::Color& color);
+            boost::shared_ptr<CovarianceVisual> visual_;
 
-      const rviz::Color& getColor () const
-      {
-	return color_;
-      }
-
-      void setAlpha (float alpha);
-
-      float getAlpha ()
-      {
-	return alpha_;
-      }
-
-      void setScale (float scale);
-
-      float getScale ()
-      {
-	return scale_;
-      }
-
-    protected:
-      virtual void onEnable ();
-      virtual void onDisable ();
-
-    private:
-      void incomingMessage
-	(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
-
-      void subscribe ();
-      void unsubscribe ();
-
-      void clear ();
-
-      void updateColorAndAlphaAndScale ();
-
-      CovarianceVisual* visual_;
-
-      Ogre::SceneNode* scene_node_;
-
-      message_filters::Subscriber<
-	geometry_msgs::PoseWithCovarianceStamped> sub_;
-      tf::MessageFilter<geometry_msgs::PoseWithCovarianceStamped>*
-	tf_filter_;
-      int messages_received_;
-
-      rviz::Color color_;
-      std::string topic_;
-      float alpha_;
-      float scale_;
-
-      rviz::ColorPropertyWPtr color_property_;
-      rviz::ROSTopicStringPropertyWPtr topic_property_;
-      rviz::FloatPropertyWPtr alpha_property_;
-      rviz::FloatPropertyWPtr scale_property_;
+            rviz::ColorProperty* color_property_;
+            rviz::FloatProperty* alpha_property_;
+            rviz::FloatProperty* scale_property_;
     };
 } // end namespace rviz_plugin_covariance
 
