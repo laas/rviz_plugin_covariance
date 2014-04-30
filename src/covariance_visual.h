@@ -1,3 +1,4 @@
+// -*- c++-mode -*-
 #ifndef COVARIANCE_VISUAL_H
 #define COVARIANCE_VISUAL_H
 

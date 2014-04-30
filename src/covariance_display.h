@@ -1,3 +1,4 @@
+// -*- c++-mode -*-
 #ifndef COVARIANCE_DISPLAY_H
 #define COVARIANCE_DISPLAY_H
 
