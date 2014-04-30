@@ -25,9 +25,9 @@ while not rospy.is_shutdown():
     cov.header.frame_id = "/base_link"
     cov.header.stamp = rospy.Time.now()
    
-    cov.pose.pose.position.x = 0#cos( 10 * angle )
-    cov.pose.pose.position.y = 0#sin( 20 * angle )
-    cov.pose.pose.position.z = 0#sin( 40 * angle )
+    cov.pose.pose.position.x = cos( 10 * angle )
+    cov.pose.pose.position.y = sin( 20 * angle )
+    cov.pose.pose.position.z = sin( 40 * angle )
 
     cov.pose.pose.orientation.w = 1.0
     cov.pose.pose.orientation.x = 0.0
