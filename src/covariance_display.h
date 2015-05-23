@@ -39,9 +39,11 @@ namespace rviz_plugin_covariance
 
             boost::shared_ptr<CovarianceVisual> visual_;
 
-            rviz::ColorProperty* color_property_;
+            rviz::ColorProperty* color_property_position_;
+            rviz::ColorProperty* color_property_orientation_;
             rviz::FloatProperty* alpha_property_;
-            rviz::FloatProperty* scale_property_;
+            rviz::FloatProperty* scale_property_covariance_;
+            rviz::FloatProperty* scale_property_axis_;
     };
 } // end namespace rviz_plugin_covariance
 
