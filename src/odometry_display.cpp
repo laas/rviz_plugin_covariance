@@ -108,7 +108,7 @@ namespace rviz_plugin_covariance
     if (visual_)
       {
 	visual_->setColor (color_.r_, color_.g_, color_.b_, alpha_);
-	visual_->setScale (scale_);
+	visual_->setScaleCovariance (scale_);
       }
   }
 
@@ -179,7 +179,7 @@ namespace rviz_plugin_covariance
     visual_->setFramePosition (position);
     visual_->setFrameOrientation (orientation);
     visual_->setColor (color_.r_, color_.g_, color_.b_, alpha_);
-    visual_->setScale (scale_);
+    visual_->setScaleCovariance (scale_);
   }
 
   void OdometryDisplay::reset ()

@@ -16,17 +16,25 @@ namespace rviz_plugin_covariance
 {
     CovarianceDisplay::CovarianceDisplay()
     {
-        color_property_ = new rviz::ColorProperty("Color", QColor( 204, 51, 204 ),
-                                                  "Color to draw the covariance ellipse.",
-                                                  this, SLOT(updateColorAndAlphaAndScale()));
+        color_property_position_ = new rviz::ColorProperty("Color Position", QColor(85, 170, 255),
+                                                           "Color to draw the covariance ellipse.",
+                                                           this, SLOT(updateColorAndAlphaAndScale()));
+
+        color_property_orientation_ = new rviz::ColorProperty("Color Orientation", QColor(0, 85, 255),
+                                                              "Color to draw the covariance ellipse.",
+                                                              this, SLOT(updateColorAndAlphaAndScale()));
 
         alpha_property_ = new rviz::FloatProperty("Alpha", 0.5f,
                                                   "0 is fully transparent, 1.0 is fully opaque.",
                                                   this, SLOT(updateColorAndAlphaAndScale()));
 
-        scale_property_ = new rviz::FloatProperty("Scale", 1.0f,
-                                                  "Scale factor to be applied to covariance ellipse",
-                                                  this, SLOT(updateColorAndAlphaAndScale()));
+        scale_property_covariance_ = new rviz::FloatProperty("Scale covariance", 1.0f,
+                                                             "Scale factor to be applied to covariance ellipse",
+                                                             this, SLOT(updateColorAndAlphaAndScale()));
+
+        scale_property_axis_ = new rviz::FloatProperty("Scale axis", 0.1f,
+                                                       "Scale factor to be applied to axis",
+                                                       this, SLOT(updateColorAndAlphaAndScale()));
     }
 
     void CovarianceDisplay::onInitialize()
@@ -46,14 +54,18 @@ namespace rviz_plugin_covariance
 
     void CovarianceDisplay::updateColorAndAlphaAndScale()
     {
-        Ogre::ColourValue color = color_property_->getOgreColor();
+        Ogre::ColourValue color_position = color_property_position_->getOgreColor();
+        Ogre::ColourValue color_orietation = color_property_orientation_->getOgreColor();
         float alpha = alpha_property_->getFloat();
-        float scale = scale_property_->getFloat();
+        float scale_covariance = scale_property_covariance_->getFloat();
+        float scale_axis = scale_property_axis_->getFloat();
 
         if (visual_)
         {
-            visual_->setColor(color.r, color.g, color.b, alpha);
-            visual_->setScale(scale);
+            visual_->setColorPosition(color_position.r, color_position.g, color_position.b, alpha);
+            visual_->setColorOrientation(color_orietation.r, color_orietation.g, color_orietation.b, alpha);
+            visual_->setScaleCovariance(scale_covariance);
+            visual_->setScaleAxis(scale_axis);
         }
     }
 
@@ -78,12 +90,7 @@ namespace rviz_plugin_covariance
         visual_->setFramePosition (position);
         visual_->setFrameOrientation (orientation);
 
-        Ogre::ColourValue color = color_property_->getOgreColor();
-        float alpha = alpha_property_->getFloat();
-        float scale = scale_property_->getFloat();
-
-        visual_->setColor(color.r, color.g, color.b, alpha);
-        visual_->setScale(scale);
+        updateColorAndAlphaAndScale();
     }
 } // end namespace rviz_plugin_covariance
 

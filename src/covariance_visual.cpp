@@ -92,9 +92,9 @@ namespace rviz_plugin_covariance
         orientationNode_ = axes_->getSceneNode()->createChildSceneNode();
 
         shape_.reset(new rviz::Shape(rviz::Shape::Sphere, scene_manager_, positionNode_));
-        orientationShape_.reset(new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientationNode_));
+        orientationShape_.reset(new rviz::Shape(rviz::Shape::Cube, scene_manager_, orientationNode_));
 
-        scaleFactor_ = 1.0f;
+        scaleFactor_covariance_ = 1.0f;
     }
 
     CovarianceVisual::~CovarianceVisual ()
@@ -145,29 +145,29 @@ namespace rviz_plugin_covariance
         orientationNode_->setOrientation(orientationQuaternion);
 
         // Compute scaling.
-        //Ogre::Vector3 axesScaling(1, 1, 1);
+        Ogre::Vector3 axesScaling(1, 1, 1);
 
-        //axesScaling *= scaleFactor_;
+        axesScaling *= scaleFactor_axis_;
 
         Ogre::Vector3 positionScaling
                       (std::sqrt (positionEigenVectorsAndValues.second[0]),
                        std::sqrt (positionEigenVectorsAndValues.second[1]),
                        std::sqrt (positionEigenVectorsAndValues.second[2]));
 
-        positionScaling *= scaleFactor_;
+        positionScaling *= scaleFactor_covariance_;
 
         Ogre::Vector3 orientationScaling
                       (std::sqrt (orientationEigenVectorsAndValues.second[0]),
                        std::sqrt (orientationEigenVectorsAndValues.second[1]),
                        std::sqrt (orientationEigenVectorsAndValues.second[2]));
 
-        orientationScaling *= scaleFactor_;
+        orientationScaling *= scaleFactor_covariance_;
 
         // Set the scaling.
-        /*if(!axesScaling.isNaN())
+        if(!axesScaling.isNaN())
             axes_->setScale(axesScaling);
         else
-            ROS_WARN_STREAM("axesScaling contains NaN: " << axesScaling);*/
+            ROS_WARN_STREAM("axesScaling contains NaN: " << axesScaling);
 
         if(!positionScaling.isNaN())
             positionNode_->setScale(positionScaling);
@@ -180,7 +180,7 @@ namespace rviz_plugin_covariance
             ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
 
         // Debugging.
-        ROS_INFO_STREAM_THROTTLE
+        ROS_DEBUG_STREAM_THROTTLE
         (1.,
         "Position:\n"
         << position << "\n"
@@ -226,9 +226,13 @@ namespace rviz_plugin_covariance
         frame_node_->setOrientation(orientation);
     }
 
-    void CovarianceVisual::setColor (float r, float g, float b, float a)
+    void CovarianceVisual::setColorPosition(float r, float g, float b, float a)
     {
         shape_->setColor(r, g, b, a);
+    }
+
+    void CovarianceVisual::setColorOrientation(float r, float g, float b, float a)
+    {
         orientationShape_->setColor(r, g, b, a);
     }
 } // end namespace rviz_plugin_covariance

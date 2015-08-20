@@ -1,25 +1,40 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rviz_plugin_covariance)
-find_package(catkin REQUIRED COMPONENTS rviz)
-catkin_package()
-include_directories(${catkin_INCLUDE_DIRS})
+
+set(${PROJECT_NAME}_CATKIN_COMPONENTS
+  roscpp
+  cmake_modules
+  rviz
+  geometry_msgs
+  nav_msgs
+)
+
+find_package(catkin REQUIRED COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS})
+
+catkin_package(
+  CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
+  DEPENDS Eigen
+)
+
+include_directories(${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
 
 find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
 include(${QT_USE_FILE})
 
 find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIR})
 
 add_definitions(-DQT_NO_KEYWORDS)
 
 qt4_wrap_cpp(MOC_FILES
   src/covariance_display.h
+#  src/odometry_display.h
 )
 
 set(SOURCE_FILES
   src/covariance_display.cpp
   src/covariance_visual.cpp
+#  src/odometry_display.cpp
   ${MOC_FILES}
 )
 

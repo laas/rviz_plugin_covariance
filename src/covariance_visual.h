@@ -31,10 +31,11 @@ namespace rviz_plugin_covariance
             void setFramePosition(const Ogre::Vector3& position);
             void setFrameOrientation(const Ogre::Quaternion& orientation);
 
-            void setColor(float r, float g, float b, float a);
+            void setColorPosition(float r, float g, float b, float a);
+            void setColorOrientation(float r, float g, float b, float a);
 
-            void setScale(float scale){ scaleFactor_ = scale; }
-
+            void setScaleCovariance(float scale) { scaleFactor_covariance_ = scale; }
+            void setScaleAxis(float scale) { scaleFactor_axis_ = scale; }
         private:
             boost::shared_ptr<rviz::Axes> axes_;
             boost::shared_ptr<rviz::Shape> shape_;
@@ -46,7 +47,8 @@ namespace rviz_plugin_covariance
 
             Ogre::SceneManager* scene_manager_;
 
-            float scaleFactor_;
+            float scaleFactor_covariance_;
+            float scaleFactor_axis_;
     };
 } // end namespace rviz_plugin_covariance
 
