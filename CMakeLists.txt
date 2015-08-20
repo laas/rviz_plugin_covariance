@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rviz_plugin_covariance)
-find_package(catkin REQUIRED COMPONENTS rviz)
+find_package(catkin REQUIRED COMPONENTS rviz cmake_modules)
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
@@ -41,12 +41,8 @@ install(FILES
   plugin_description.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
-install(DIRECTORY media/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/media)
-
 install(DIRECTORY icons/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/icons)
 
 install(PROGRAMS scripts/send_test_msgs.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
