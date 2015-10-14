@@ -52,7 +52,7 @@ namespace rviz_plugin_covariance
                     rotation[i][j] = pair.first(i, j);
 
 
-            if(Ogre::Quaternion(rotation).Norm() != 1.0f)
+            if(std::abs(Ogre::Quaternion(rotation).Norm() - 1.0f) > 0.00001)
             {
                 ROS_WARN("computeRotation found non-unitary quaternion!");
 
