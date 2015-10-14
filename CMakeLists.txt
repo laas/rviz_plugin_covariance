@@ -15,11 +15,13 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 qt4_wrap_cpp(MOC_FILES
   src/covariance_display.h
+  src/odometry_display.h
 )
 
 set(SOURCE_FILES
   src/covariance_display.cpp
   src/covariance_visual.cpp
+  src/odometry_display.cpp
   ${MOC_FILES}
 )
 
