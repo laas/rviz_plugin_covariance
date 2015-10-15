@@ -10,7 +10,7 @@
 
 #include "covariance_visual.h"
 
-#include "odometry_new.h"
+#include "odometry_display.h"
 
 namespace rviz_plugin_covariance
 {
