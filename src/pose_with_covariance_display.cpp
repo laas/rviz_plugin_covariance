@@ -168,6 +168,17 @@ public:
         aabbs.push_back( display_->axes_->getZShape()->getEntity()->getWorldBoundingBox() );
       }
     }
+
+    if( display_->covariance_valid_ )
+    {
+      if( display_->covariance_property_->getBool() )
+      {
+        // NOTE: The bounding boxes looks correct when rviz is fixed in the pose, but looks weird when fixed on other frames.
+        //       Not sure if it's wrong or it's ok. It appears to happen with topics with low publishing rate.
+        aabbs.push_back( display_->covariance_position_shape_->getEntity()->getWorldBoundingBox() );
+        aabbs.push_back( display_->covariance_orientation_shape_->getEntity()->getWorldBoundingBox() );
+      }
+    }
   }
 
   void setMessage(const geometry_msgs::PoseWithCovarianceStampedConstPtr& message)
