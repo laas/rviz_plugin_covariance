@@ -235,7 +235,7 @@ PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ), 
                                              this);
   
-  covariance_position_alpha_property_ = new FloatProperty( "Position Alpha", 0.5f,
+  covariance_position_alpha_property_ = new FloatProperty( "Position Alpha", 0.3f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
                                              this);
@@ -245,7 +245,7 @@ PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
                                              this);
 
-  covariance_orientation_color_property_ = new ColorProperty( "Orientation Color", QColor( 204, 51, 204 ),
+  covariance_orientation_color_property_ = new ColorProperty( "Orientation Color", QColor( 255, 255, 127 ),
                                              "Color to draw the covariance ellipse.",
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ), 
                                              this);
