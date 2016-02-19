@@ -18,14 +18,14 @@ namespace rviz
 
 namespace rviz_plugin_covariance
 {
-    class CovarianceVisual;
+    class PoseWithCovarianceVisual;
 
-    class CovarianceDisplay: public rviz::MessageFilterDisplay<geometry_msgs::PoseWithCovarianceStamped>
+    class PoseWithCovarianceDisplay: public rviz::MessageFilterDisplay<geometry_msgs::PoseWithCovarianceStamped>
     {
         Q_OBJECT
         public:
-            CovarianceDisplay();
-            virtual ~CovarianceDisplay();
+            PoseWithCovarianceDisplay();
+            virtual ~PoseWithCovarianceDisplay();
 
         protected:
             virtual void onInitialize();
@@ -37,7 +37,7 @@ namespace rviz_plugin_covariance
         private:
             void processMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
 
-            boost::shared_ptr<CovarianceVisual> visual_;
+            boost::shared_ptr<PoseWithCovarianceVisual> visual_;
 
             rviz::ColorProperty* color_property_;
             rviz::FloatProperty* alpha_property_;

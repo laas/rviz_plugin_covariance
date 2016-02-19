@@ -8,13 +8,13 @@
 #include <rviz/properties/float_property.h>
 #include <rviz/frame_manager.h>
 
-#include "covariance_visual.h"
+#include "pose_with_covariance_visual.h"
 
-#include "covariance_display.h"
+#include "pose_with_covariance_display.h"
 
 namespace rviz_plugin_covariance
 {
-    CovarianceDisplay::CovarianceDisplay()
+    PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
     {
         color_property_ = new rviz::ColorProperty("Color", QColor( 204, 51, 204 ),
                                                   "Color to draw the covariance ellipse.",
@@ -29,22 +29,22 @@ namespace rviz_plugin_covariance
                                                   this, SLOT(updateColorAndAlphaAndScale()));
     }
 
-    void CovarianceDisplay::onInitialize()
+    void PoseWithCovarianceDisplay::onInitialize()
     {
         MFDClass::onInitialize();
     }
 
-    CovarianceDisplay::~CovarianceDisplay()
+    PoseWithCovarianceDisplay::~PoseWithCovarianceDisplay()
     {
     }
 
-    void CovarianceDisplay::reset()
+    void PoseWithCovarianceDisplay::reset()
     {
         MFDClass::reset();
         //visual_.clear();
     }
 
-    void CovarianceDisplay::updateColorAndAlphaAndScale()
+    void PoseWithCovarianceDisplay::updateColorAndAlphaAndScale()
     {
         Ogre::ColourValue color = color_property_->getOgreColor();
         float alpha = alpha_property_->getFloat();
@@ -57,7 +57,7 @@ namespace rviz_plugin_covariance
         }
     }
 
-    void CovarianceDisplay::processMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+    void PoseWithCovarianceDisplay::processMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
     {
         Ogre::Quaternion orientation;
         Ogre::Vector3 position;
@@ -72,7 +72,7 @@ namespace rviz_plugin_covariance
         }
 
         if (!visual_)
-            visual_.reset(new CovarianceVisual(context_->getSceneManager(), scene_node_));
+            visual_.reset(new PoseWithCovarianceVisual(context_->getSceneManager(), scene_node_));
 
         visual_->setMessage (msg);
         visual_->setFramePosition (position);
@@ -88,4 +88,4 @@ namespace rviz_plugin_covariance
 } // end namespace rviz_plugin_covariance
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(rviz_plugin_covariance::CovarianceDisplay, rviz::Display)
+PLUGINLIB_EXPORT_CLASS(rviz_plugin_covariance::PoseWithCovarianceDisplay, rviz::Display)

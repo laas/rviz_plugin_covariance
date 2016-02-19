@@ -8,7 +8,7 @@
 #include <rviz/properties/float_property.h>
 #include <rviz/frame_manager.h>
 
-#include "covariance_visual.h"
+#include "pose_with_covariance_visual.h"
 
 #include "odometry_display.h"
 
@@ -72,7 +72,7 @@ namespace rviz_plugin_covariance
         }
 
         if (!visual_)
-            visual_.reset(new CovarianceVisual(context_->getSceneManager(), scene_node_));
+            visual_.reset(new PoseWithCovarianceVisual(context_->getSceneManager(), scene_node_));
 
         visual_->setMessage (msg->pose);
         visual_->setFramePosition (position);

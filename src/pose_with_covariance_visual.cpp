@@ -5,7 +5,7 @@
 #include <rviz/ogre_helpers/axes.h>
 #include <rviz/ogre_helpers/shape.h>
 
-#include "covariance_visual.h"
+#include "pose_with_covariance_visual.h"
 
 #include <ros/console.h>
 #include <Eigen/Dense>
@@ -81,7 +81,7 @@ namespace rviz_plugin_covariance
         }
     } // end of anonymous namespace.
 
-    CovarianceVisual::CovarianceVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node)
+    PoseWithCovarianceVisual::PoseWithCovarianceVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node)
     {
         scene_manager_ = scene_manager;
 
@@ -97,14 +97,14 @@ namespace rviz_plugin_covariance
         scaleFactor_ = 1.0f;
     }
 
-    CovarianceVisual::~CovarianceVisual ()
+    PoseWithCovarianceVisual::~PoseWithCovarianceVisual ()
     {
         scene_manager_->destroySceneNode (orientationNode_);
         scene_manager_->destroySceneNode (positionNode_);
         scene_manager_->destroySceneNode (frame_node_);
     }
 
-    void CovarianceVisual::setMessage(const geometry_msgs::PoseWithCovariance& msg)
+    void PoseWithCovarianceVisual::setMessage(const geometry_msgs::PoseWithCovariance& msg)
     {
         // Construct pose position and orientation.
         const geometry_msgs::Point& p = msg.pose.position;
@@ -209,24 +209,24 @@ namespace rviz_plugin_covariance
         );
     }
 
-    void CovarianceVisual::setMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+    void PoseWithCovarianceVisual::setMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
     {
         setMessage(msg->pose);
     }
 
     void
-    CovarianceVisual::setFramePosition (const Ogre::Vector3& position)
+    PoseWithCovarianceVisual::setFramePosition (const Ogre::Vector3& position)
     {
         frame_node_->setPosition(position);
     }
 
     void
-    CovarianceVisual::setFrameOrientation (const Ogre::Quaternion& orientation)
+    PoseWithCovarianceVisual::setFrameOrientation (const Ogre::Quaternion& orientation)
     {
         frame_node_->setOrientation(orientation);
     }
 
-    void CovarianceVisual::setColor (float r, float g, float b, float a)
+    void PoseWithCovarianceVisual::setColor (float r, float g, float b, float a)
     {
         shape_->setColor(r, g, b, a);
         orientationShape_->setColor(r, g, b, a);

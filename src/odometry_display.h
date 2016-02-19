@@ -18,7 +18,7 @@ namespace rviz
 
 namespace rviz_plugin_covariance
 {
-    class CovarianceVisual;
+    class PoseWithCovarianceVisual;
 
     class OdometryDisplay: public rviz::MessageFilterDisplay<nav_msgs::Odometry>
     {
@@ -37,7 +37,7 @@ namespace rviz_plugin_covariance
         private:
             void processMessage(const nav_msgs::Odometry::ConstPtr& msg);
 
-            boost::shared_ptr<CovarianceVisual> visual_;
+            boost::shared_ptr<PoseWithCovarianceVisual> visual_;
 
             rviz::ColorProperty* color_property_;
             rviz::FloatProperty* alpha_property_;

@@ -18,12 +18,12 @@ namespace rviz
 
 namespace rviz_plugin_covariance
 {
-    class CovarianceVisual
+    class PoseWithCovarianceVisual
     {
         public:
-            CovarianceVisual (Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node);
+            PoseWithCovarianceVisual (Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node);
 
-            virtual ~CovarianceVisual ();
+            virtual ~PoseWithCovarianceVisual ();
 
             void setMessage(const geometry_msgs::PoseWithCovariance& msg);
             void setMessage(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
