@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 import rospy
 from math import cos, sin
 import tf
+import tf_conversions
 
 topic = 'test_covariance'
 publisher = rospy.Publisher( topic, PoseWithCovarianceStamped )
@@ -12,7 +13,7 @@ publisher = rospy.Publisher( topic, PoseWithCovarianceStamped )
 rospy.init_node( 'test_covariance' )
 
 br = tf.TransformBroadcaster()
-rate = rospy.Rate(10)
+rate = rospy.Rate(100)
 radius = 1
 angle = 0
 r = 0
@@ -48,7 +49,14 @@ while not rospy.is_shutdown():
                      rospy.Time.now(),
                      "base_link",
                      "map")
-    angle += .01
+
+    br.sendTransform((cov.pose.pose.position.x, cov.pose.pose.position.y, cov.pose.pose.position.z),
+                     (cov.pose.pose.orientation.x, cov.pose.pose.orientation.y, cov.pose.pose.orientation.z, cov.pose.pose.orientation.w),
+                     rospy.Time.now(),
+                     "pose",
+                     "base_link")
+
+    angle += .0005
     r = angle
     p = angle
     y = angle
