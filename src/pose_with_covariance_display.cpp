@@ -230,17 +230,32 @@ PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
   covariance_property_ = new BoolProperty( "Covariance", true, "Whether or not the covariances of the messages should be shown.",
                                              this, SLOT( updateCovarianceChoice() ));
   
-  covariance_color_property_ = new ColorProperty( "Color", QColor( 204, 51, 204 ),
+  covariance_position_color_property_ = new ColorProperty( "Position Color", QColor( 204, 51, 204 ),
                                              "Color to draw the covariance ellipse.",
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ), 
                                              this);
   
-  covariance_alpha_property_ = new FloatProperty( "Alpha", 0.5f,
+  covariance_position_alpha_property_ = new FloatProperty( "Position Alpha", 0.5f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
                                              this);
   
-  covariance_scale_property_ = new FloatProperty( "Scale", 1.0f,
+  covariance_position_scale_property_ = new FloatProperty( "Position Scale", 1.0f,
+                                             "Scale factor to be applied to covariance ellipse",
+                                             covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
+                                             this);
+
+  covariance_orientation_color_property_ = new ColorProperty( "Orientation Color", QColor( 204, 51, 204 ),
+                                             "Color to draw the covariance ellipse.",
+                                             covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ), 
+                                             this);
+  
+  covariance_orientation_alpha_property_ = new FloatProperty( "Orientation Alpha", 0.5f,
+                                             "0 is fully transparent, 1.0 is fully opaque.",
+                                             covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
+                                             this);
+  
+  covariance_orientation_scale_property_ = new FloatProperty( "Orientation Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
                                              covariance_property_, SLOT( updateCovarianceColorAndAlphaAndScale() ),
                                              this);
@@ -267,6 +282,9 @@ void PoseWithCovarianceDisplay::onInitialize()
   // covariance_position_node_ = scene_node_->createChildSceneNode();
   covariance_position_node_ = axes_->getSceneNode()->createChildSceneNode();
   covariance_position_shape_ = new rviz::Shape(rviz::Shape::Sphere, scene_manager_, covariance_position_node_);
+
+  covariance_orientation_node_ = axes_->getSceneNode()->createChildSceneNode();
+  covariance_orientation_shape_ = new rviz::Shape(rviz::Shape::Cone, scene_manager_, covariance_orientation_node_);
 
   updateShapeChoice();
   updateColorAndAlpha();
@@ -308,12 +326,19 @@ void PoseWithCovarianceDisplay::updateColorAndAlpha()
 
 void PoseWithCovarianceDisplay::updateCovarianceColorAndAlphaAndScale()
 {
-  Ogre::ColourValue color = covariance_color_property_->getOgreColor();
-  color.a = covariance_alpha_property_->getFloat();
+  Ogre::ColourValue color = covariance_position_color_property_->getOgreColor();
+  color.a = covariance_position_alpha_property_->getFloat();
 
   covariance_position_shape_->setColor( color );
 
-  covariance_scale_ = covariance_scale_property_->getFloat();
+  covariance_position_scale_ = covariance_position_scale_property_->getFloat();
+
+  color = covariance_orientation_color_property_->getOgreColor();
+  color.a = covariance_orientation_alpha_property_->getFloat();
+
+  covariance_orientation_shape_->setColor( color );
+
+  covariance_orientation_scale_ = covariance_orientation_scale_property_->getFloat();
 
   context_->queueRender();
 }
@@ -357,9 +382,13 @@ void PoseWithCovarianceDisplay::updateCovarianceChoice()
 {
   bool show_covariance = covariance_property_->getBool() ;
 
-  covariance_scale_property_->setHidden( !show_covariance );
-  covariance_alpha_property_->setHidden( !show_covariance );
-  covariance_color_property_->setHidden( !show_covariance );
+  covariance_position_scale_property_->setHidden( !show_covariance );
+  covariance_position_alpha_property_->setHidden( !show_covariance );
+  covariance_position_color_property_->setHidden( !show_covariance );
+
+  covariance_orientation_scale_property_->setHidden( !show_covariance );
+  covariance_orientation_alpha_property_->setHidden( !show_covariance );
+  covariance_orientation_color_property_->setHidden( !show_covariance );
 
   updateShapeVisibility();
 
@@ -384,12 +413,14 @@ void PoseWithCovarianceDisplay::updateShapeVisibility()
   {
     // TODO: Not sure if getRootNode is the function to be called here...
     covariance_position_shape_->getRootNode()->setVisible( false );
+    covariance_orientation_shape_->getRootNode()->setVisible( false );
   }
   else
   {
     bool show_covariance = covariance_property_->getBool();
     // TODO: Not sure if getRootNode is the function to be called here...
     covariance_position_shape_->getRootNode()->setVisible( show_covariance );
+    covariance_orientation_shape_->getRootNode()->setVisible( show_covariance );
   }
 }
 
@@ -462,7 +493,7 @@ void PoseWithCovarianceDisplay::setCovarianceNodes(const geometry_msgs::PoseWith
     Ogre::Quaternion orientationQuaternion(computeRotation(msg, orientationEigenVectorsAndValues));
 
     covariance_position_node_->setOrientation(positionQuaternion);
-    // covariance_orientation_node_->setOrientation(orientationQuaternion);
+    covariance_orientation_node_->setOrientation(orientationQuaternion);
 
     // Compute scaling.
     //Ogre::Vector3 axesScaling(1, 1, 1);
@@ -474,14 +505,14 @@ void PoseWithCovarianceDisplay::setCovarianceNodes(const geometry_msgs::PoseWith
                    std::sqrt (positionEigenVectorsAndValues.second[1]),
                    std::sqrt (positionEigenVectorsAndValues.second[2]));
 
-    positionScaling *= covariance_scale_;
+    positionScaling *= covariance_position_scale_;
 
     Ogre::Vector3 orientationScaling
                   (std::sqrt (orientationEigenVectorsAndValues.second[0]),
                    std::sqrt (orientationEigenVectorsAndValues.second[1]),
                    std::sqrt (orientationEigenVectorsAndValues.second[2]));
 
-    orientationScaling *= covariance_scale_;
+    orientationScaling *= covariance_orientation_scale_;
 
     // Set the scaling.
     /*if(!axesScaling.isNaN())
@@ -494,10 +525,10 @@ void PoseWithCovarianceDisplay::setCovarianceNodes(const geometry_msgs::PoseWith
     else
         ROS_WARN_STREAM("positionScaling contains NaN: " << positionScaling);
 
-    // if(!orientationScaling.isNaN())
-    //     covariance_orientation_node_->setScale(orientationScaling);
-    // else
-    //     ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
+    if(!orientationScaling.isNaN())
+        covariance_orientation_node_->setScale(orientationScaling);
+    else
+        ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
 
     // Debugging.
     ROS_DEBUG_STREAM_THROTTLE
