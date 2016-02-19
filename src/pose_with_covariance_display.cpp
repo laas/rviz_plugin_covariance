@@ -144,6 +144,12 @@ public:
 
     orientation_property_ = new QuaternionProperty( "Orientation", Ogre::Quaternion::IDENTITY, "", cat );
     orientation_property_->setReadOnly( true );
+
+    covariance_position_property_ = new VectorProperty( "Covariance Position", Ogre::Vector3::ZERO, "", cat );
+    covariance_position_property_->setReadOnly( true );
+
+    covariance_orientation_property_ = new VectorProperty( "Covariance Orientation", Ogre::Vector3::ZERO, "", cat );
+    covariance_orientation_property_->setReadOnly( true );    
   }
 
   void getAABBs( const Picked& obj, V_AABB& aabbs )
@@ -180,6 +186,13 @@ public:
                                                               message->pose.pose.orientation.x,
                                                               message->pose.pose.orientation.y,
                                                               message->pose.pose.orientation.z ));
+      covariance_position_property_->setVector( Ogre::Vector3( message->pose.covariance[0+0*6],
+                                                               message->pose.covariance[1+1*6],
+                                                               message->pose.covariance[2+2*6] ));
+
+      covariance_orientation_property_->setVector( Ogre::Vector3( message->pose.covariance[3+3*6],
+                                                                  message->pose.covariance[4+4*6],
+                                                                  message->pose.covariance[5+5*6] ));
     }
   }
 
@@ -188,6 +201,9 @@ private:
   StringProperty* frame_property_;
   VectorProperty* position_property_;
   QuaternionProperty* orientation_property_;
+  VectorProperty* covariance_position_property_;
+  VectorProperty* covariance_orientation_property_;
+  
 };
 
 PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
