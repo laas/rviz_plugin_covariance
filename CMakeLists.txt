@@ -17,10 +17,12 @@ qt4_wrap_cpp(MOC_FILES
   src/pose_with_covariance_display.h
   src/odometry_display.h
   src/covariance_visual.h
+  src/covariance_property.h
 )
 
 set(SOURCE_FILES
   src/covariance_visual.cpp
+  src/covariance_property.cpp
   src/pose_with_covariance_display.cpp
   src/pose_with_covariance_visual.cpp
   src/odometry_display.cpp
