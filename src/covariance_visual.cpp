@@ -87,19 +87,21 @@ namespace
 } // end of anonymous namespace.
 
 
-CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, float pos_scale, float ori_scale)
+CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible, float pos_scale, float ori_scale)
 : Object( scene_manager ),
-  position_scale_( 1.0f ), orientation_scale_( 1.0f )
+  position_scale_factor_( 1.0f ), orientation_scale_factor_( 1.0f ),
+  position_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
+  orientation_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f))
 {
-
   position_node_ = parent_node->createChildSceneNode();
   position_shape_ = new rviz::Shape(rviz::Shape::Sphere, scene_manager_, position_node_);
 
   orientation_node_ = parent_node->createChildSceneNode();
   orientation_shape_ = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_node_);
 
-  setScales( pos_scale, ori_scale );
+  setVisible( is_visible );
 
+  setScales( pos_scale, ori_scale );
 }
 
 CovarianceVisual::~CovarianceVisual()
@@ -138,19 +140,17 @@ void CovarianceVisual::setCovariance( CovarianceVisual::covariance_type msg_cova
 
     //axesScaling *= scaleFactor_;
 
-    Ogre::Vector3 positionScaling
-                  (std::sqrt (positionEigenVectorsAndValues.second[0]),
-                   std::sqrt (positionEigenVectorsAndValues.second[1]),
-                   std::sqrt (positionEigenVectorsAndValues.second[2]));
+    position_msg_scale_->x = std::sqrt (positionEigenVectorsAndValues.second[0]);
+    position_msg_scale_->y = std::sqrt (positionEigenVectorsAndValues.second[1]);
+    position_msg_scale_->z = std::sqrt (positionEigenVectorsAndValues.second[2]);
 
-    positionScaling *= position_scale_;
+    Ogre::Vector3 positionScaling = (*position_msg_scale_) * position_scale_factor_;
 
-    Ogre::Vector3 orientationScaling
-                  (std::sqrt (orientationEigenVectorsAndValues.second[0]),
-                   std::sqrt (orientationEigenVectorsAndValues.second[1]),
-                   std::sqrt (orientationEigenVectorsAndValues.second[2]));
+    orientation_msg_scale_->x = std::sqrt (orientationEigenVectorsAndValues.second[0]);
+    orientation_msg_scale_->y = std::sqrt (orientationEigenVectorsAndValues.second[1]);
+    orientation_msg_scale_->z = std::sqrt (orientationEigenVectorsAndValues.second[2]);
 
-    orientationScaling *= orientation_scale_;
+    Ogre::Vector3 orientationScaling = (*orientation_msg_scale_) * orientation_scale_factor_;
 
     // Set the scaling.
     /*if(!axesScaling.isNaN())
@@ -195,6 +195,24 @@ void CovarianceVisual::setCovariance( CovarianceVisual::covariance_type msg_cova
     << orientationScaling
     );
 
+}
+
+void CovarianceVisual::setScales( float pos_scale, float ori_scale)
+{
+  setPositionScale(pos_scale);
+  setOrientationScale(ori_scale);
+}
+
+void CovarianceVisual::setPositionScale( float pos_scale ) 
+{
+  position_scale_factor_ = pos_scale;
+  position_node_->setScale((*position_msg_scale_) * position_scale_factor_);
+}
+
+void CovarianceVisual::setOrientationScale( float ori_scale )
+{
+  orientation_scale_factor_ = ori_scale;
+  orientation_node_->setScale((*orientation_msg_scale_) * orientation_scale_factor_);
 }
 
 void CovarianceVisual::setPositionColor(const Ogre::ColourValue& c)

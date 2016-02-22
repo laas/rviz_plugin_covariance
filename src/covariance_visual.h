@@ -3,6 +3,7 @@
 
 #include <rviz/ogre_helpers/object.h>
 
+#include <boost/scoped_ptr.hpp>
 #include <boost/array.hpp>
 
 namespace Ogre
@@ -40,7 +41,7 @@ public:
    * @param pos_scale Scale of the position covariance
    * @param ori_scale Scale of the orientation covariance
    */
-  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, float pos_scale = 1.0f, float ori_scale = 0.1f);
+  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible = true, float pos_scale = 1.0f, float ori_scale = 0.1f);
   virtual ~CovarianceVisual();
 
   /**
@@ -49,9 +50,9 @@ public:
    * @param pos_scale Scale of the position covariance
    * @param ori_scale Scale of the orientation covariance
    */
-  void setScales( float pos_scale, float ori_scale) { position_scale_ = pos_scale; orientation_scale_ = ori_scale; }
-  void setPositionScale( float pos_scale ) { position_scale_ = pos_scale; }
-  void setOrientationScale( float ori_scale ) { orientation_scale_ = ori_scale; }
+  void setScales( float pos_scale, float ori_scale);
+  void setPositionScale( float pos_scale );
+  void setOrientationScale( float ori_scale );
 
   /**
    * \brief Set the color of the position covariance. Values are in the range [0, 1]
@@ -120,8 +121,11 @@ private:
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
   rviz::Shape* orientation_shape_;   ///< Cone used for the orientation covariance
 
-  float position_scale_;
-  float orientation_scale_;
+  float position_scale_factor_;
+  float orientation_scale_factor_;
+
+  boost::scoped_ptr<Ogre::Vector3> position_msg_scale_;
+  boost::scoped_ptr<Ogre::Vector3> orientation_msg_scale_;
 
 // Hide Object methods we don't want to expose
 // NOTE: Apparently we still need to define them...
