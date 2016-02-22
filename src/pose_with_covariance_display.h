@@ -62,12 +62,10 @@ private:
   void clear();
 
   virtual void processMessage( const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& message );
-  void setCovarianceNodes(const geometry_msgs::PoseWithCovariance& msg);
 
   rviz::Arrow* arrow_;
   rviz::Axes* axes_;
-  rviz::Shape* covariance_position_shape_;
-  rviz::Shape* covariance_orientation_shape_;
+  CovarianceVisual* covariance_;
   bool pose_valid_;
   bool covariance_valid_;
   PoseWithCovarianceDisplaySelectionHandlerPtr coll_handler_;
@@ -92,12 +90,6 @@ private:
   rviz::ColorProperty* covariance_orientation_color_property_;
   rviz::FloatProperty* covariance_orientation_alpha_property_;
   rviz::FloatProperty* covariance_orientation_scale_property_;
-
-  float covariance_position_scale_;
-  float covariance_orientation_scale_;
-
-  Ogre::SceneNode* covariance_position_node_;
-  Ogre::SceneNode* covariance_orientation_node_;
 
   friend class PoseWithCovarianceDisplaySelectionHandler;
 };
