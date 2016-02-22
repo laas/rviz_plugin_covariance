@@ -77,12 +77,10 @@ private:
   typedef std::deque<rviz::Arrow*> D_Arrow;
   typedef std::deque<rviz::Axes*> D_Axes;
   typedef std::deque<CovarianceVisual*> D_Covariance;
-  typedef std::deque<Ogre::SceneNode*> D_SceneNode;
 
   D_Arrow arrows_;
   D_Axes axes_;
   D_Covariance covariances_;
-  D_SceneNode scene_nodes_;
 
   nav_msgs::Odometry::ConstPtr last_used_message_;
 

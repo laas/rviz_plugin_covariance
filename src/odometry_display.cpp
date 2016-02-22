@@ -118,14 +118,6 @@ void OdometryDisplay::clear()
   }
   covariances_.clear();
 
-  D_SceneNode::iterator it_node = scene_nodes_.begin();
-  D_SceneNode::iterator end_node = scene_nodes_.end();
-  for ( ; it_node != end_node; ++it_node )
-  {
-    scene_manager_->destroySceneNode( (*it_node)->getName() );
-  }
-  scene_nodes_.clear();
-
   D_Axes::iterator it_axes = axes_.begin();
   D_Axes::iterator end_axes = axes_.end();
   for ( ; it_axes != end_axes; ++it_axes )
@@ -324,29 +316,22 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   Axes* axes = new Axes( scene_manager_, scene_node_,
                          axes_length_property_->getFloat(),
                          axes_radius_property_->getFloat() );
-  Ogre::SceneNode* node = scene_node_->createChildSceneNode();
-  Arrow* arrow = new Arrow( scene_manager_, node, 
+  Arrow* arrow = new Arrow( scene_manager_, scene_node_, 
                             shaft_length_property_->getFloat(),
                             shaft_radius_property_->getFloat(),
                             head_length_property_->getFloat(),
                             head_radius_property_->getFloat() );
-  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, node );
-
-  // Show/Hide arrow/axes depending on current property
-  bool use_arrow = (shape_property_->getOptionInt() == ArrowShape);
-  arrow->getSceneNode()->setVisible( use_arrow );
-  axes->getSceneNode()->setVisible( !use_arrow );
-
-  // Position the node
-  node->setPosition( position );
-  node->setOrientation( orientation );
+  // The axis will be the parent of the covariance
+  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, axes->getSceneNode() );
 
   // Position the axes
   axes->setPosition( position );
   axes->setOrientation( orientation );
 
+  // Position the arrow
+  arrow->setPosition( position );
   // Arrow points in -Z direction, so rotate the orientation before display.
-  arrow->setOrientation( Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
+  arrow->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
 
   // Set up arrow color
   QColor color = color_property_->getColor();
@@ -368,12 +353,14 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   // Set up the covariance based on the message
   cov->setCovariance(message->pose.covariance);
 
-  // Set up covariance's visibility based on the property
+  // Show/Hide things based on current properties
+  bool use_arrow = (shape_property_->getOptionInt() == ArrowShape);
+  arrow->getSceneNode()->setVisible( use_arrow );
+  axes->getSceneNode()->setVisible( !use_arrow );
   cov->setVisible( covariance_property_->getBool() );
 
   // store everything
   axes_.push_back( axes );
-  scene_nodes_.push_back( node );
   arrows_.push_back( arrow );
   covariances_.push_back( cov );
 
@@ -396,15 +383,11 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
 
       delete axes_.front();
       axes_.pop_front();
-
-      scene_manager_->destroySceneNode( scene_nodes_.front()->getName() );
-      scene_nodes_.pop_front();
     }
   }
 
   assert(arrows_.size() == covariances_.size());
-  assert(covariances_.size() == scene_nodes_.size());
-  assert(scene_nodes_.size() == axes_.size());
+  assert(covariances_.size() == axes_.size());
 
 }
 
