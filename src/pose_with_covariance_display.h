@@ -24,11 +24,12 @@ namespace rviz_plugin_covariance
 {
 
 class CovarianceVisual;
+class CovarianceProperty;
 
 class PoseWithCovarianceDisplaySelectionHandler;
 typedef boost::shared_ptr<PoseWithCovarianceDisplaySelectionHandler> PoseWithCovarianceDisplaySelectionHandlerPtr;
 
-/** @brief Accumulates and displays the pose from a geometry_msgs::PoseWithCovarianceStamped message. */
+/** @brief Displays the pose from a geometry_msgs::PoseWithCovarianceStamped message. */
 class PoseWithCovarianceDisplay: public rviz::MessageFilterDisplay<geometry_msgs::PoseWithCovarianceStamped>
 {
 Q_OBJECT
@@ -51,6 +52,7 @@ protected:
 
 private Q_SLOTS:
   void updateShapeVisibility();
+  void updateCovarianceVisibility();
   void updateColorAndAlpha();
   void updateShapeChoice();
   void updateAxisGeometry();
@@ -83,13 +85,7 @@ private:
   rviz::FloatProperty* axes_length_property_;
   rviz::FloatProperty* axes_radius_property_;
 
-  rviz::BoolProperty* covariance_property_;
-  rviz::ColorProperty* covariance_position_color_property_;
-  rviz::FloatProperty* covariance_position_alpha_property_;
-  rviz::FloatProperty* covariance_position_scale_property_;
-  rviz::ColorProperty* covariance_orientation_color_property_;
-  rviz::FloatProperty* covariance_orientation_alpha_property_;
-  rviz::FloatProperty* covariance_orientation_scale_property_;
+  CovarianceProperty* covariance_property_;
 
   friend class PoseWithCovarianceDisplaySelectionHandler;
 };
