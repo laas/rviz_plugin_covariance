@@ -1,91 +1,272 @@
-#include <OGRE/OgreSceneNode.h>
-#include <OGRE/OgreSceneManager.h>
+
+#include <boost/bind.hpp>
 
 #include <tf/transform_listener.h>
 
-#include <rviz/visualization_manager.h>
-#include <rviz/properties/color_property.h>
-#include <rviz/properties/float_property.h>
-#include <rviz/frame_manager.h>
-
-#include "pose_with_covariance_visual.h"
+#include "rviz/frame_manager.h"
+#include "rviz/ogre_helpers/arrow.h"
+#include "rviz/properties/color_property.h"
+#include "rviz/properties/float_property.h"
+#include "rviz/properties/int_property.h"
+#include "rviz/properties/ros_topic_property.h"
+#include "rviz/validate_floats.h"
+#include "rviz/display_context.h"
 
 #include "odometry_display.h"
 
+using namespace rviz;
+
 namespace rviz_plugin_covariance
 {
-    OdometryDisplay::OdometryDisplay()
+
+OdometryDisplay::OdometryDisplay()
+  : Display()
+  , messages_received_(0)
+{
+  topic_property_ = new RosTopicProperty( "Topic", "",
+                                          QString::fromStdString( ros::message_traits::datatype<nav_msgs::Odometry>() ),
+                                          "nav_msgs::Odometry topic to subscribe to.",
+                                          this, SLOT( updateTopic() ));
+
+  color_property_ = new ColorProperty( "Color", QColor( 255, 25, 0 ),
+                                       "Color of the arrows.",
+                                       this, SLOT( updateColor() ));
+
+  position_tolerance_property_ = new FloatProperty( "Position Tolerance", .1,
+                                                    "Distance, in meters from the last arrow dropped, "
+                                                    "that will cause a new arrow to drop.",
+                                                    this );
+  position_tolerance_property_->setMin( 0 );
+                                                
+  angle_tolerance_property_ = new FloatProperty( "Angle Tolerance", .1,
+                                                 "Angular distance from the last arrow dropped, "
+                                                 "that will cause a new arrow to drop.",
+                                                 this );
+  angle_tolerance_property_->setMin( 0 );
+
+  keep_property_ = new IntProperty( "Keep", 100,
+                                    "Number of arrows to keep before removing the oldest.  0 means keep all of them.",
+                                    this );
+  keep_property_->setMin( 0 );
+
+  length_property_ = new FloatProperty( "Length", 1.0,
+                                        "Length of each arrow.",
+                                        this, SLOT( updateLength() ));
+}
+
+OdometryDisplay::~OdometryDisplay()
+{
+  if ( initialized() )
+  {
+    unsubscribe();
+    clear();
+    delete tf_filter_;
+  }
+}
+
+void OdometryDisplay::onInitialize()
+{
+  tf_filter_ = new tf::MessageFilter<nav_msgs::Odometry>( *context_->getTFClient(), fixed_frame_.toStdString(),
+                                                          5, update_nh_ );
+
+  tf_filter_->connectInput( sub_ );
+  tf_filter_->registerCallback( boost::bind( &OdometryDisplay::incomingMessage, this, _1 ));
+  context_->getFrameManager()->registerFilterForTransformStatusCheck( tf_filter_, this );
+}
+
+void OdometryDisplay::clear()
+{
+  D_Arrow::iterator it = arrows_.begin();
+  D_Arrow::iterator end = arrows_.end();
+  for ( ; it != end; ++it )
+  {
+    delete *it;
+  }
+  arrows_.clear();
+
+  if( last_used_message_ )
+  {
+    last_used_message_.reset();
+  }
+
+  tf_filter_->clear();
+
+  messages_received_ = 0;
+  setStatus( StatusProperty::Warn, "Topic", "No messages received" );
+}
+
+void OdometryDisplay::updateTopic()
+{
+  unsubscribe();
+  clear();
+  subscribe();
+  context_->queueRender();
+}
+
+void OdometryDisplay::updateColor()
+{
+  QColor color = color_property_->getColor();
+  float red   = color.redF();
+  float green = color.greenF();
+  float blue  = color.blueF();
+
+  D_Arrow::iterator it = arrows_.begin();
+  D_Arrow::iterator end = arrows_.end();
+  for( ; it != end; ++it )
+  {
+    Arrow* arrow = *it;
+    arrow->setColor( red, green, blue, 1.0f );
+  }
+  context_->queueRender();
+}
+
+void OdometryDisplay::updateLength()
+{
+  float length = length_property_->getFloat();
+  D_Arrow::iterator it = arrows_.begin();
+  D_Arrow::iterator end = arrows_.end();
+  Ogre::Vector3 scale( length, length, length );
+  for ( ; it != end; ++it )
+  {
+    Arrow* arrow = *it;
+    arrow->setScale( scale );
+  }
+  context_->queueRender();
+}
+
+void OdometryDisplay::subscribe()
+{
+  if ( !isEnabled() )
+  {
+    return;
+  }
+
+  try
+  {
+    sub_.subscribe( update_nh_, topic_property_->getTopicStd(), 5 );
+    setStatus( StatusProperty::Ok, "Topic", "OK" );
+  }
+  catch( ros::Exception& e )
+  {
+    setStatus( StatusProperty::Error, "Topic", QString( "Error subscribing: " ) + e.what() );
+  }
+}
+
+void OdometryDisplay::unsubscribe()
+{
+  sub_.unsubscribe();
+}
+
+void OdometryDisplay::onEnable()
+{
+  subscribe();
+}
+
+void OdometryDisplay::onDisable()
+{
+  unsubscribe();
+  clear();
+}
+
+bool validateFloats(const nav_msgs::Odometry& msg)
+{
+  bool valid = true;
+  valid = valid && rviz::validateFloats( msg.pose.pose );
+  valid = valid && rviz::validateFloats( msg.twist.twist );
+  return valid;
+}
+
+void OdometryDisplay::incomingMessage( const nav_msgs::Odometry::ConstPtr& message )
+{
+  ++messages_received_;
+
+  if( !validateFloats( *message ))
+  {
+    setStatus( StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)" );
+    return;
+  }
+
+  setStatus( StatusProperty::Ok, "Topic", QString::number( messages_received_ ) + " messages received" );
+
+  if( last_used_message_ )
+  {
+    Ogre::Vector3 last_position(last_used_message_->pose.pose.position.x, last_used_message_->pose.pose.position.y, last_used_message_->pose.pose.position.z);
+    Ogre::Vector3 current_position(message->pose.pose.position.x, message->pose.pose.position.y, message->pose.pose.position.z);
+    Ogre::Quaternion last_orientation(last_used_message_->pose.pose.orientation.w, last_used_message_->pose.pose.orientation.x, last_used_message_->pose.pose.orientation.y, last_used_message_->pose.pose.orientation.z);
+    Ogre::Quaternion current_orientation(message->pose.pose.orientation.w, message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z);
+
+    if( (last_position - current_position).length() < position_tolerance_property_->getFloat() &&
+        (last_orientation - current_orientation).normalise() < angle_tolerance_property_->getFloat() )
     {
-        color_property_ = new rviz::ColorProperty("Color", QColor( 204, 51, 204 ),
-                                                  "Color to draw the covariance ellipse.",
-                                                  this, SLOT(updateColorAndAlphaAndScale()));
-
-        alpha_property_ = new rviz::FloatProperty("Alpha", 0.5f,
-                                                  "0 is fully transparent, 1.0 is fully opaque.",
-                                                  this, SLOT(updateColorAndAlphaAndScale()));
-
-        scale_property_ = new rviz::FloatProperty("Scale", 1.0f,
-                                                  "Scale factor to be applied to covariance ellipse",
-                                                  this, SLOT(updateColorAndAlphaAndScale()));
+      return;
     }
+  }
 
-    void OdometryDisplay::onInitialize()
+  Arrow* arrow = new Arrow( scene_manager_, scene_node_, 0.8f, 0.05f, 0.2f, 0.2f );
+
+  transformArrow( message, arrow );
+
+  QColor color = color_property_->getColor();
+  arrow->setColor( color.redF(), color.greenF(), color.blueF(), 1.0f );
+
+  float length = length_property_->getFloat();
+  Ogre::Vector3 scale( length, length, length );
+  arrow->setScale( scale );
+
+  arrows_.push_back( arrow );
+
+  last_used_message_ = message;
+  context_->queueRender();
+}
+
+void OdometryDisplay::transformArrow( const nav_msgs::Odometry::ConstPtr& message, Arrow* arrow )
+{
+  Ogre::Vector3 position;
+  Ogre::Quaternion orientation;
+  if( !context_->getFrameManager()->transform( message->header, message->pose.pose, position, orientation ))
+  {
+    ROS_ERROR( "Error transforming odometry '%s' from frame '%s' to frame '%s'",
+               qPrintable( getName() ), message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
+  }
+
+  arrow->setPosition( position );
+
+  // Arrow points in -Z direction, so rotate the orientation before display.
+  // TODO: is it safe to change Arrow to point in +X direction?
+  arrow->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
+}
+
+void OdometryDisplay::fixedFrameChanged()
+{
+  tf_filter_->setTargetFrame( fixed_frame_.toStdString() );
+  clear();
+}
+
+void OdometryDisplay::update( float wall_dt, float ros_dt )
+{
+  size_t keep = keep_property_->getInt();
+  if( keep > 0 )
+  {
+    while( arrows_.size() > keep )
     {
-        MFDClass::onInitialize();
+      delete arrows_.front();
+      arrows_.pop_front();
     }
+  }
+}
 
-    OdometryDisplay::~OdometryDisplay()
-    {
-    }
+void OdometryDisplay::reset()
+{
+  Display::reset();
+  clear();
+}
 
-    void OdometryDisplay::reset()
-    {
-        MFDClass::reset();
-        //visual_.clear();
-    }
+void OdometryDisplay::setTopic( const QString &topic, const QString &datatype )
+{
+  topic_property_->setString( topic );
+}
 
-    void OdometryDisplay::updateColorAndAlphaAndScale()
-    {
-        Ogre::ColourValue color = color_property_->getOgreColor();
-        float alpha = alpha_property_->getFloat();
-        float scale = scale_property_->getFloat();
-
-        if (visual_)
-        {
-            visual_->setColor(color.r, color.g, color.b, alpha);
-            visual_->setScale(scale);
-        }
-    }
-
-    void OdometryDisplay::processMessage(const nav_msgs::Odometry::ConstPtr& msg)
-    {
-        Ogre::Quaternion orientation;
-        Ogre::Vector3 position;
-
-        if(!context_->getFrameManager()->getTransform(msg->header.frame_id,
-                                                      msg->header.stamp,
-                                                      position, orientation ))
-        {
-            ROS_DEBUG( "Error transforming from frame '%s' to frame '%s'",
-            msg->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
-            return;
-        }
-
-        if (!visual_)
-            visual_.reset(new PoseWithCovarianceVisual(context_->getSceneManager(), scene_node_));
-
-        visual_->setMessage (msg->pose);
-        visual_->setFramePosition (position);
-        visual_->setFrameOrientation (orientation);
-
-        Ogre::ColourValue color = color_property_->getOgreColor();
-        float alpha = alpha_property_->getFloat();
-        float scale = scale_property_->getFloat();
-
-        visual_->setColor(color.r, color.g, color.b, alpha);
-        visual_->setScale(scale);
-    }
-} // end namespace rviz_plugin_covariance
+} // namespace rviz
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(rviz_plugin_covariance::OdometryDisplay, rviz::Display)
+PLUGINLIB_EXPORT_CLASS( rviz_plugin_covariance::OdometryDisplay, rviz::Display )

@@ -1,48 +1,87 @@
-// -*- c++-mode -*-
-#ifndef ODOMETRY_DISPLAY_H
-#define ODOMETRY_DISPLAY_H
+#ifndef ODOMETRY_DISPLAY_H_
+#define ODOMETRY_DISPLAY_H_
+
+#include <deque>
+
+#include <boost/shared_ptr.hpp>
+#include <boost/thread/mutex.hpp>
+
+#ifndef Q_MOC_RUN
+#include <message_filters/subscriber.h>
+#include <tf/message_filter.h>
+#endif
 
 #include <nav_msgs/Odometry.h>
-#include <rviz/message_filter_display.h>
 
-namespace Ogre
-{
-    class SceneNode;
-}
+#include "rviz/display.h"
 
 namespace rviz
 {
-    class ColorProperty;
-    class FloatProperty;
+
+class Arrow;
+class ColorProperty;
+class FloatProperty;
+class IntProperty;
+class RosTopicProperty;
 }
 
 namespace rviz_plugin_covariance
 {
-    class PoseWithCovarianceVisual;
 
-    class OdometryDisplay: public rviz::MessageFilterDisplay<nav_msgs::Odometry>
-    {
-        Q_OBJECT
-        public:
-            OdometryDisplay();
-            virtual ~OdometryDisplay();
+/**
+ * \class OdometryDisplay
+ * \brief Accumulates and displays the pose from a nav_msgs::Odometry message
+ */
+class OdometryDisplay: public rviz::Display
+{
+Q_OBJECT
+public:
+  OdometryDisplay();
+  virtual ~OdometryDisplay();
 
-        protected:
-            virtual void onInitialize();
-            virtual void reset();
+  // Overrides from Display
+  virtual void onInitialize();
+  virtual void fixedFrameChanged();
+  virtual void update( float wall_dt, float ros_dt );
+  virtual void reset();
 
-        private Q_SLOTS:
-            void updateColorAndAlphaAndScale();
+  virtual void setTopic( const QString &topic, const QString &datatype );
 
-        private:
-            void processMessage(const nav_msgs::Odometry::ConstPtr& msg);
+protected:
+  // overrides from Display
+  virtual void onEnable();
+  virtual void onDisable();
 
-            boost::shared_ptr<PoseWithCovarianceVisual> visual_;
+private Q_SLOTS:
+  void updateColor();
+  void updateTopic();
+  void updateLength();
 
-            rviz::ColorProperty* color_property_;
-            rviz::FloatProperty* alpha_property_;
-            rviz::FloatProperty* scale_property_;
-    };
-} // end namespace rviz_plugin_covariance
+private:
+  void subscribe();
+  void unsubscribe();
+  void clear();
 
-#endif // ODOMETRY_DISPLAY_H
+  void incomingMessage( const nav_msgs::Odometry::ConstPtr& message );
+  void transformArrow( const nav_msgs::Odometry::ConstPtr& message, rviz::Arrow* arrow );
+
+  typedef std::deque<rviz::Arrow*> D_Arrow;
+  D_Arrow arrows_;
+
+  uint32_t messages_received_;
+
+  nav_msgs::Odometry::ConstPtr last_used_message_;
+  message_filters::Subscriber<nav_msgs::Odometry> sub_;
+  tf::MessageFilter<nav_msgs::Odometry>* tf_filter_;
+
+  rviz::ColorProperty* color_property_;
+  rviz::RosTopicProperty* topic_property_;
+  rviz::FloatProperty* position_tolerance_property_;
+  rviz::FloatProperty* angle_tolerance_property_;
+  rviz::IntProperty* keep_property_;
+  rviz::FloatProperty* length_property_;
+};
+
+} // namespace rviz
+
+#endif /* RVIZ_ODOMETRY_DISPLAY_H_ */
