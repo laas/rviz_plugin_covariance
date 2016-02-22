@@ -1,16 +1,9 @@
 
-#include <boost/bind.hpp>
-
-#include <tf/transform_listener.h>
-
-#include <rviz/frame_manager.h>
 #include <rviz/ogre_helpers/arrow.h>
 #include <rviz/properties/color_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/properties/int_property.h>
-#include <rviz/properties/ros_topic_property.h>
 #include <rviz/validate_floats.h>
-#include <rviz/display_context.h>
 
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
@@ -25,14 +18,7 @@ namespace rviz_plugin_covariance
 {
 
 OdometryDisplay::OdometryDisplay()
-  : Display()
-  , messages_received_(0)
 {
-  topic_property_ = new RosTopicProperty( "Topic", "",
-                                          QString::fromStdString( ros::message_traits::datatype<nav_msgs::Odometry>() ),
-                                          "nav_msgs::Odometry topic to subscribe to.",
-                                          this, SLOT( updateTopic() ));
-
   color_property_ = new ColorProperty( "Color", QColor( 255, 25, 0 ),
                                        "Color of the arrows.",
                                        this, SLOT( updateColor() ));
@@ -79,20 +65,8 @@ OdometryDisplay::~OdometryDisplay()
 {
   if ( initialized() )
   {
-    unsubscribe();
     clear();
-    delete tf_filter_;
   }
-}
-
-void OdometryDisplay::onInitialize()
-{
-  tf_filter_ = new tf::MessageFilter<nav_msgs::Odometry>( *context_->getTFClient(), fixed_frame_.toStdString(),
-                                                          5, update_nh_ );
-
-  tf_filter_->connectInput( sub_ );
-  tf_filter_->registerCallback( boost::bind( &OdometryDisplay::incomingMessage, this, _1 ));
-  context_->getFrameManager()->registerFilterForTransformStatusCheck( tf_filter_, this );
 }
 
 void OdometryDisplay::clear()
@@ -125,19 +99,6 @@ void OdometryDisplay::clear()
   {
     last_used_message_.reset();
   }
-
-  tf_filter_->clear();
-
-  messages_received_ = 0;
-  setStatus( StatusProperty::Warn, "Topic", "No messages received" );
-}
-
-void OdometryDisplay::updateTopic()
-{
-  unsubscribe();
-  clear();
-  subscribe();
-  context_->queueRender();
 }
 
 void OdometryDisplay::updateColor()
@@ -221,40 +182,6 @@ void OdometryDisplay::updateCovarianceColorAndAlphaAndScale()
   context_->queueRender();
 }
 
-void OdometryDisplay::subscribe()
-{
-  if ( !isEnabled() )
-  {
-    return;
-  }
-
-  try
-  {
-    sub_.subscribe( update_nh_, topic_property_->getTopicStd(), 5 );
-    setStatus( StatusProperty::Ok, "Topic", "OK" );
-  }
-  catch( ros::Exception& e )
-  {
-    setStatus( StatusProperty::Error, "Topic", QString( "Error subscribing: " ) + e.what() );
-  }
-}
-
-void OdometryDisplay::unsubscribe()
-{
-  sub_.unsubscribe();
-}
-
-void OdometryDisplay::onEnable()
-{
-  subscribe();
-}
-
-void OdometryDisplay::onDisable()
-{
-  unsubscribe();
-  clear();
-}
-
 bool validateFloats(const nav_msgs::Odometry& msg)
 {
   bool valid = true;
@@ -265,17 +192,13 @@ bool validateFloats(const nav_msgs::Odometry& msg)
   return valid;
 }
 
-void OdometryDisplay::incomingMessage( const nav_msgs::Odometry::ConstPtr& message )
+void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& message )
 {
-  ++messages_received_;
-
-  if( !validateFloats( *message ))
+   if( !validateFloats( *message ))
   {
     setStatus( StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)" );
     return;
   }
-
-  setStatus( StatusProperty::Ok, "Topic", QString::number( messages_received_ ) + " messages received" );
 
   if( last_used_message_ )
   {
@@ -346,12 +269,6 @@ void OdometryDisplay::incomingMessage( const nav_msgs::Odometry::ConstPtr& messa
   context_->queueRender();
 }
 
-void OdometryDisplay::fixedFrameChanged()
-{
-  tf_filter_->setTargetFrame( fixed_frame_.toStdString() );
-  clear();
-}
-
 void OdometryDisplay::update( float wall_dt, float ros_dt )
 {
   size_t keep = keep_property_->getInt();
@@ -376,13 +293,8 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
 
 void OdometryDisplay::reset()
 {
-  Display::reset();
+  MFDClass::reset();
   clear();
-}
-
-void OdometryDisplay::setTopic( const QString &topic, const QString &datatype )
-{
-  topic_property_->setString( topic );
 }
 
 } // namespace rviz_plugin_covariance
