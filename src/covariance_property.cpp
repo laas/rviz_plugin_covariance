@@ -54,6 +54,8 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   position_alpha_property_ = new FloatProperty( "Position Alpha", 0.3f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
                                              this, SIGNAL( childrenChanged() ) );
+  position_alpha_property_->setMin( 0 );
+  position_alpha_property_->setMax( 1 );
   
   position_scale_property_ = new FloatProperty( "Position Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
@@ -66,6 +68,8 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   orientation_alpha_property_ = new FloatProperty( "Orientation Alpha", 0.5f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
                                              this, SIGNAL( childrenChanged() ) );
+  orientation_alpha_property_->setMin( 0 );
+  orientation_alpha_property_->setMax( 1 );
   
   orientation_scale_property_ = new FloatProperty( "Orientation Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
