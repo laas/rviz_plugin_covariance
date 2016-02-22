@@ -71,12 +71,14 @@ private:
   void clear();
 
   void incomingMessage( const nav_msgs::Odometry::ConstPtr& message );
-  void transformArrow( const nav_msgs::Odometry::ConstPtr& message, rviz::Arrow* arrow );
 
   typedef std::deque<rviz::Arrow*> D_Arrow;
   typedef std::deque<CovarianceVisual*> D_Covariance;
+  typedef std::deque<Ogre::SceneNode*> D_SceneNode;
+
   D_Arrow arrows_;
   D_Covariance covariances_;
+  D_SceneNode scene_nodes_;
 
   uint32_t messages_received_;
 

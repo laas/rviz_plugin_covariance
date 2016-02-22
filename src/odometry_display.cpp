@@ -3,14 +3,17 @@
 
 #include <tf/transform_listener.h>
 
-#include "rviz/frame_manager.h"
-#include "rviz/ogre_helpers/arrow.h"
-#include "rviz/properties/color_property.h"
-#include "rviz/properties/float_property.h"
-#include "rviz/properties/int_property.h"
-#include "rviz/properties/ros_topic_property.h"
-#include "rviz/validate_floats.h"
-#include "rviz/display_context.h"
+#include <rviz/frame_manager.h>
+#include <rviz/ogre_helpers/arrow.h>
+#include <rviz/properties/color_property.h>
+#include <rviz/properties/float_property.h>
+#include <rviz/properties/int_property.h>
+#include <rviz/properties/ros_topic_property.h>
+#include <rviz/validate_floats.h>
+#include <rviz/display_context.h>
+
+#include <OgreSceneManager.h>
+#include <OgreSceneNode.h>
 
 #include "odometry_display.h"
 #include "covariance_property.h"
@@ -109,6 +112,14 @@ void OdometryDisplay::clear()
     delete *it_cov;
   }
   covariances_.clear();
+
+  D_SceneNode::iterator it_node = scene_nodes_.begin();
+  D_SceneNode::iterator end_node = scene_nodes_.end();
+  for ( ; it_node != end_node; ++it_node )
+  {
+    scene_manager_->destroySceneNode( (*it_node)->getName() );
+  }
+  scene_nodes_.clear();
 
   if( last_used_message_ )
   {
@@ -280,16 +291,35 @@ void OdometryDisplay::incomingMessage( const nav_msgs::Odometry::ConstPtr& messa
     }
   }
 
-  Arrow* arrow = new Arrow( scene_manager_, scene_node_, 0.8f, 0.05f, 0.2f, 0.2f );
-  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, arrow->getSceneNode() );
+  Ogre::Vector3 position;
+  Ogre::Quaternion orientation;
+  if( !context_->getFrameManager()->transform( message->header, message->pose.pose, position, orientation ))
+  {
+    ROS_ERROR( "Error transforming odometry '%s' from frame '%s' to frame '%s'",
+               qPrintable( getName() ), message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
+    return;
+  }
 
-  transformArrow( message, arrow );
+  // If we arrive here, we're good. Continue...
 
+  // Create a scene node, and attach the arrow and the covariance to it
+  Ogre::SceneNode* node = scene_node_->createChildSceneNode();
+  Arrow* arrow = new Arrow( scene_manager_, node, 0.8f, 0.05f, 0.2f, 0.2f );
+  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, node );
+
+  // Position the node
+  node->setPosition( position );
+  node->setOrientation( orientation );
+
+  // Arrow points in -Z direction, so rotate the orientation before display.
+  arrow->setOrientation( Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
+
+  // Set up arrow color and geometry
   QColor color = color_property_->getColor();
   arrow->setColor( color.redF(), color.greenF(), color.blueF(), 1.0f );
-
   updateGeometry(arrow);
 
+  // Set up covariance color and scales
   color = covariance_property_->getPositionColor();
   float alpha = covariance_property_->getPositionAlpha();
   cov->setPositionColor(color.redF(), color.greenF(), color.blueF(), alpha);
@@ -301,32 +331,19 @@ void OdometryDisplay::incomingMessage( const nav_msgs::Odometry::ConstPtr& messa
   cov->setPositionScale( covariance_property_->getPositionScale() );
   cov->setOrientationScale( covariance_property_->getOrientationScale() );
 
+  // Set up the covariance based on the message
   cov->setCovariance(message->pose.covariance);
 
+  // Set up covariance's visibility based on the property
   cov->setVisible( covariance_property_->getBool() );
 
+  // store everything
+  scene_nodes_.push_back( node );
   arrows_.push_back( arrow );
   covariances_.push_back( cov );
 
   last_used_message_ = message;
   context_->queueRender();
-}
-
-void OdometryDisplay::transformArrow( const nav_msgs::Odometry::ConstPtr& message, Arrow* arrow )
-{
-  Ogre::Vector3 position;
-  Ogre::Quaternion orientation;
-  if( !context_->getFrameManager()->transform( message->header, message->pose.pose, position, orientation ))
-  {
-    ROS_ERROR( "Error transforming odometry '%s' from frame '%s' to frame '%s'",
-               qPrintable( getName() ), message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
-  }
-
-  arrow->setPosition( position );
-
-  // Arrow points in -Z direction, so rotate the orientation before display.
-  // TODO: is it safe to change Arrow to point in +X direction?
-  arrow->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
 }
 
 void OdometryDisplay::fixedFrameChanged()
@@ -347,10 +364,14 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
 
       delete covariances_.front();
       covariances_.pop_front();
+
+      scene_manager_->destroySceneNode( scene_nodes_.front()->getName() );
+      scene_nodes_.pop_front();
     }
   }
 
   assert(arrows_.size() == covariances_.size());
+  assert(covariances_.size() == scene_nodes_.size());
 }
 
 void OdometryDisplay::reset()
