@@ -17,9 +17,11 @@
 namespace rviz
 {
 class Arrow;
+class Axes;
 class ColorProperty;
 class FloatProperty;
 class IntProperty;
+class EnumProperty;
 }
 
 namespace rviz_plugin_covariance
@@ -36,38 +38,58 @@ class OdometryDisplay: public rviz::MessageFilterDisplay<nav_msgs::Odometry>
 {
 Q_OBJECT
 public:
+  enum Shape
+  {
+    ArrowShape,
+    AxesShape,
+  };
+
   OdometryDisplay();
   virtual ~OdometryDisplay();
 
-  // Overides MessageFilterDisplay
+  // Overides of MessageFilterDisplay
+  virtual void onInitialize();
   virtual void reset();
-  // Overides Display
+  // Overides of Display
   virtual void update( float wall_dt, float ros_dt );
 
+protected:
+  /** @brief Overridden from MessageFilterDisplay to get Arrow/Axes visibility correct. */
+  virtual void onEnable();
+
 private Q_SLOTS:
-  void updateColor();
+  void updateShapeChoice();
+  void updateShapeVisibility();
+  void updateColorAndAlpha();
   void updateArrowsGeometry();
+  void updateAxisGeometry();
   void updateCovarianceChoice();
   void updateCovarianceVisibility();
   void updateCovarianceColorAndAlphaAndScale();
 
 private:
   void updateGeometry( rviz::Arrow* arrow );
+  void updateGeometry( rviz::Axes* axes );
   void clear();
 
   virtual void processMessage( const nav_msgs::Odometry::ConstPtr& message );
 
   typedef std::deque<rviz::Arrow*> D_Arrow;
+  typedef std::deque<rviz::Axes*> D_Axes;
   typedef std::deque<CovarianceVisual*> D_Covariance;
   typedef std::deque<Ogre::SceneNode*> D_SceneNode;
 
   D_Arrow arrows_;
+  D_Axes axes_;
   D_Covariance covariances_;
   D_SceneNode scene_nodes_;
 
   nav_msgs::Odometry::ConstPtr last_used_message_;
 
+  rviz::EnumProperty* shape_property_;
+
   rviz::ColorProperty* color_property_;
+  rviz::FloatProperty* alpha_property_;
   rviz::FloatProperty* position_tolerance_property_;
   rviz::FloatProperty* angle_tolerance_property_;
   rviz::IntProperty* keep_property_;
@@ -76,6 +98,9 @@ private:
   rviz::FloatProperty* head_length_property_;
   rviz::FloatProperty* shaft_radius_property_;
   rviz::FloatProperty* shaft_length_property_;
+
+  rviz::FloatProperty* axes_length_property_;
+  rviz::FloatProperty* axes_radius_property_;
 
   CovarianceProperty* covariance_property_;
 };
