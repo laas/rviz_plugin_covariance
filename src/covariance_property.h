@@ -1,6 +1,8 @@
 #ifndef COVARIANCE_PROPERTY_H
 #define COVARIANCE_PROPERTY_H
 
+#include <QColor>
+
 #include <OgreColourValue.h>
 
 #include <rviz/properties/bool_property.h>
@@ -29,11 +31,13 @@ public:
 
   virtual ~CovarianceProperty();
 
-  Ogre::ColourValue getPositionColor();
+  Ogre::ColourValue getPositionOgreColor();
+  QColor getPositionColor() const;
   float getPositionAlpha();
   float getPositionScale();
 
-  Ogre::ColourValue getOrientationColor();
+  Ogre::ColourValue getOrientationOgreColor();
+  QColor getOrientationColor() const;
   float getOrientationAlpha();
   float getOrientationScale();
 

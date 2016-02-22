@@ -253,13 +253,13 @@ void PoseWithCovarianceDisplay::updateColorAndAlpha()
 
 void PoseWithCovarianceDisplay::updateCovarianceColorAndAlphaAndScale()
 {
-  Ogre::ColourValue color = covariance_property_->getPositionColor();
+  Ogre::ColourValue color = covariance_property_->getPositionOgreColor();
   color.a = covariance_property_->getPositionAlpha();
 
   covariance_->setPositionColor( color );
   covariance_->setPositionScale( covariance_property_->getPositionScale() );
 
-  color = covariance_property_->getOrientationColor();
+  color = covariance_property_->getOrientationOgreColor();
   color.a = covariance_property_->getOrientationAlpha();
 
   covariance_->setOrientationColor( color );

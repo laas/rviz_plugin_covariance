@@ -78,7 +78,12 @@ CovarianceProperty::~CovarianceProperty()
 {
 }
 
-Ogre::ColourValue CovarianceProperty::getPositionColor()
+QColor CovarianceProperty::getPositionColor() const
+{ 
+  return position_color_property_->getColor();
+}
+
+Ogre::ColourValue CovarianceProperty::getPositionOgreColor()
 {
   return position_color_property_->getOgreColor();
 }
@@ -93,7 +98,12 @@ float CovarianceProperty::getPositionScale()
   position_scale_property_->getFloat();
 }
 
-Ogre::ColourValue CovarianceProperty::getOrientationColor()
+QColor CovarianceProperty::getOrientationColor() const
+{ 
+  return orientation_color_property_->getColor();
+}
+
+Ogre::ColourValue CovarianceProperty::getOrientationOgreColor()
 {
   return orientation_color_property_->getOgreColor();
 }
