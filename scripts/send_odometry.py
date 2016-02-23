@@ -4,6 +4,7 @@ import roslib; roslib.load_manifest('rviz')
 from nav_msgs.msg import Odometry
 import rospy
 import tf
+from numpy import pi
 
 br = tf.TransformBroadcaster()
 
@@ -24,12 +25,8 @@ while not rospy.is_shutdown():
    odo.pose.pose.position.y = y
    odo.pose.pose.position.z = 0
 
-   odo.pose.pose.orientation.x = 0
-   odo.pose.pose.orientation.y = 0
-   odo.pose.pose.orientation.z = 0
-   odo.pose.pose.orientation.w = 1
-
-   odo.pose.covariance
+   ori = odo.pose.pose.orientation
+   ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(0, pi/2, 0)
 
    odo.pose.covariance[0+0*6] = 0.2+(abs(y)/2.5);
    odo.pose.covariance[1+1*6] = 0.2;
