@@ -202,6 +202,9 @@ void OdometryDisplay::updateShapeChoice()
   axes_radius_property_->setHidden( use_arrow );
 
   updateShapeVisibility();
+  // covariances are children of axis, thus we need to update their 
+  // visibilities as well in case their parents turns invisible
+  updateCovarianceVisibility();
 
   context_->queueRender();
 }
