@@ -47,20 +47,25 @@ CovarianceVisual::~CovarianceVisual()
   scene_manager_->destroySceneNode( frame_node_->getName() );
 }
 
+// Local function to force the axis to be right handed. Taken from ecl_statistics
+void makeRightHanded( Eigen::Matrix3d& eigenvectors, Eigen::Vector3d& eigenvalues)
+{
+  // Note that sorting of eigenvalues may end up with left-hand coordinate system.
+  // So here we correctly sort it so that it does end up being righ-handed and normalised.
+  Eigen::Vector3d c0 = eigenvectors.block<3,1>(0,0);  c0.normalize();
+  Eigen::Vector3d c1 = eigenvectors.block<3,1>(0,1);  c1.normalize();
+  Eigen::Vector3d c2 = eigenvectors.block<3,1>(0,2);  c2.normalize();
+  Eigen::Vector3d cc = c0.cross(c1);
+  if (cc.dot(c2) < 0) {
+    eigenvectors << c1, c0, c2;
+    double e = eigenvalues[0];  eigenvalues[0] = eigenvalues[1];  eigenvalues[1] = e;
+  } else {
+    eigenvectors << c0, c1, c2;
+  }
+}
+
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
-// separatelly and use their values to rotate and scale the covarance shapes:
-// 
-// - The largest scale will be the x-axis of the shape; the second largest the y-axis and the smallest the z-axis.
-// 
-// - The scaling of each axis will be defined by the eigenvalues: largest eigenvalue on x-axis, second on y-axis 
-//   and smallest on z-axis.
-// 
-// - The rotation matrix is composed by the eigenvectors as columns, ordered in a decreasing order according to 
-//   the respective eigenvalues.
-// 
-// - The rotation will make the x-axis of the shape coincide with the eigenvector of the largest eigenvalue, the 
-//   y-axis coincide with the eigenvector of the second largest eigenvalue, and the z-axis coincide with the 
-//   remaining eigenvector.
+// separatelly and use their values to rotate and scale the covarance shapes.
 void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& message )
 {
   // check for NaN in covariance
@@ -91,17 +96,17 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
     eigenvalues = Eigen::Vector3d::Zero();      // This will set the scale to zero, hiding the covariance in the screen
     eigenvectors = Eigen::Matrix3d::Identity();
   }
+  makeRightHanded(eigenvectors, eigenvalues);
+
   // Define the rotation and scale
-  // NOTE: The solver return the eigenvalues and eigenvectors in a INCREASING order, thus we make some 
-  //       changing in the orders here.
-  Ogre::Quaternion positionQuaternion(Ogre::Matrix3(eigenvectors(0,2), eigenvectors(0,1), eigenvectors(0,0),
-                                                    eigenvectors(1,2), eigenvectors(1,1), eigenvectors(1,0),
-                                                    eigenvectors(2,2), eigenvectors(2,1), eigenvectors(2,0)));
+  Ogre::Quaternion positionQuaternion(Ogre::Matrix3(eigenvectors(0,0), eigenvectors(0,1), eigenvectors(0,2),
+                                                    eigenvectors(1,0), eigenvectors(1,1), eigenvectors(1,2),
+                                                    eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
   // The eigenvalue is the variance, so we take the sqrt to draw the standard deviation
-  position_msg_scale_->x = std::sqrt (eigenvalues[2]);
+  position_msg_scale_->x = std::sqrt (eigenvalues[0]);
   position_msg_scale_->y = std::sqrt (eigenvalues[1]);
-  position_msg_scale_->z = std::sqrt (eigenvalues[0]);
-  // The scale is also multiplied by a factor which should be set from outside (normally from a property)
+  position_msg_scale_->z = std::sqrt (eigenvalues[2]);
+  // The scale is also multiplied by a factor which should be set from outside (normally from a display property)
   Ogre::Vector3 positionScaling = (*position_msg_scale_) * position_scale_factor_;
 
   // Repeat the same procedure for the orientation
@@ -117,12 +122,14 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
     eigenvalues = Eigen::Vector3d::Zero();
     eigenvectors = Eigen::Matrix3d::Identity();
   }
-  Ogre::Quaternion orientationQuaternion(Ogre::Matrix3(eigenvectors(0,2), eigenvectors(0,1), eigenvectors(0,0),
-                                                       eigenvectors(1,2), eigenvectors(1,1), eigenvectors(1,0),
-                                                       eigenvectors(2,2), eigenvectors(2,1), eigenvectors(2,0)));
-  orientation_msg_scale_->x = std::sqrt (eigenvalues[2]);
+  makeRightHanded(eigenvectors, eigenvalues);
+
+  Ogre::Quaternion orientationQuaternion(Ogre::Matrix3(eigenvectors(0,0), eigenvectors(0,1), eigenvectors(0,2),
+                                                       eigenvectors(1,0), eigenvectors(1,1), eigenvectors(1,2),
+                                                       eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
+  orientation_msg_scale_->x = std::sqrt (eigenvalues[0]);
   orientation_msg_scale_->y = std::sqrt (eigenvalues[1]);
-  orientation_msg_scale_->z = std::sqrt (eigenvalues[0]);
+  orientation_msg_scale_->z = std::sqrt (eigenvalues[2]);
   Ogre::Vector3 orientationScaling = (*orientation_msg_scale_) * orientation_scale_factor_;
 
   // Finnaly position, rotate and scale the nodes
