@@ -64,6 +64,41 @@ void makeRightHanded( Eigen::Matrix3d& eigenvectors, Eigen::Vector3d& eigenvalue
   }
 }
 
+void computeShapeScaleAndOrientation(const Eigen::Matrix3d& covariance, Ogre::Vector3& shape, Ogre::Quaternion& orientation)
+{
+  Eigen::Vector3d eigenvalues(Eigen::Vector3d::Identity());
+  Eigen::Matrix3d eigenvectors(Eigen::Matrix3d::Zero());
+
+  // NOTE: The SelfAdjointEigenSolver only references the lower triangular part of the covariance matrix
+  // FIXME: Should we use Eigen's pseudoEigenvectors() ?
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance);
+  // Compute eigenvectors and eigenvalues
+  if (eigensolver.info () == Eigen::Success)
+  {
+    eigenvalues = eigensolver.eigenvalues();
+    eigenvectors = eigensolver.eigenvectors();
+  }
+  else
+  {
+    ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values for position. Is the covariance matrix correct?");
+    eigenvalues = Eigen::Vector3d::Zero();      // Setting the scale to zero will hide it on the screen
+    eigenvectors = Eigen::Matrix3d::Identity();
+  }
+
+  // Be sure we have a right-handed orientation system
+  makeRightHanded(eigenvectors, eigenvalues);
+
+  // Define the rotation
+  orientation.FromRotationMatrix(Ogre::Matrix3(eigenvectors(0,0), eigenvectors(0,1), eigenvectors(0,2),
+                                               eigenvectors(1,0), eigenvectors(1,1), eigenvectors(1,2),
+                                               eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
+
+  // Define the scale. eigenvalues are the variances, so we take the sqrt to draw the standard deviation
+  shape.x = std::sqrt (eigenvalues[0]);
+  shape.y = std::sqrt (eigenvalues[1]);
+  shape.z = std::sqrt (eigenvalues[2]);
+}
+
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
 // separatelly and use their values to rotate and scale the covarance shapes.
 void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& message )
@@ -78,82 +113,42 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
       }
   }
 
+  // store pose in Ogre structures
+  Ogre::Vector3 msg_position(message.pose.position.x,message.pose.position.y,message.pose.position.z);
+  Ogre::Quaternion msg_orientation(message.pose.orientation.w, message.pose.orientation.x, message.pose.orientation.y, message.pose.orientation.z);
+
   Eigen::Map<const Eigen::Matrix<double,6,6> > covariance(message.covariance.data());
-  Eigen::Vector3d eigenvalues = Eigen::Vector3d::Identity();
-  Eigen::Matrix3d eigenvectors = Eigen::Matrix3d::Zero();
 
-  // NOTE: The SelfAdjointEigenSolver only references the lower triangular part of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(covariance.topLeftCorner<3,3>());
-  // Compute eigenvectors and eigenvalues
-  if (eigensolver.info () == Eigen::Success)
-  {
-    eigenvalues = eigensolver.eigenvalues();   // can also be seen as variances
-    eigenvectors = eigensolver.eigenvectors(); // ordered as column vectors
-  }
+  // Compute shape and orientation for the position part of covariance
+  Ogre::Vector3 shape_scale;
+  Ogre::Quaternion shape_orientation;
+  computeShapeScaleAndOrientation(covariance.topLeftCorner<3,3>(), shape_scale, shape_orientation);
+  // store the shape (needed if the scale factor changes later)
+  (*position_msg_scale_) = shape_scale;
+  // update the shape by the scale factor
+  shape_scale *= position_scale_factor_;
+
+  // Position, rotate and scale the scene node of the position part
+  position_node_->setPosition(msg_position);
+  position_node_->setOrientation(shape_orientation);
+  if(!shape_scale.isNaN())
+      position_node_->setScale(shape_scale);
   else
-  {
-    ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values for position. Is the covariance matrix correct?");
-    eigenvalues = Eigen::Vector3d::Zero();      // This will set the scale to zero, hiding the covariance in the screen
-    eigenvectors = Eigen::Matrix3d::Identity();
-  }
-  makeRightHanded(eigenvectors, eigenvalues);
+      ROS_WARN_STREAM("position shape_scale contains NaN: " << shape_scale);
 
-  // Define the rotation and scale
-  Ogre::Quaternion positionQuaternion(Ogre::Matrix3(eigenvectors(0,0), eigenvectors(0,1), eigenvectors(0,2),
-                                                    eigenvectors(1,0), eigenvectors(1,1), eigenvectors(1,2),
-                                                    eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
-  // The eigenvalue is the variance, so we take the sqrt to draw the standard deviation
-  position_msg_scale_->x = std::sqrt (eigenvalues[0]);
-  position_msg_scale_->y = std::sqrt (eigenvalues[1]);
-  position_msg_scale_->z = std::sqrt (eigenvalues[2]);
-  // The scale is also multiplied by a factor which should be set from outside (normally from a display property)
-  Ogre::Vector3 positionScaling = (*position_msg_scale_) * position_scale_factor_;
+  // Repeat the same for the orientation part of the covariance matrix
+  computeShapeScaleAndOrientation(covariance.bottomRightCorner<3,3>(), shape_scale, shape_orientation);
+  (*orientation_msg_scale_) = shape_scale;
+  shape_scale *= orientation_scale_factor_;
 
-  // Repeat the same procedure for the orientation
-  eigensolver.compute(covariance.bottomRightCorner<3,3>());
-  if (eigensolver.info () == Eigen::Success)
-  {
-    eigenvalues = eigensolver.eigenvalues();
-    eigenvectors = eigensolver.eigenvectors();
-  }
+  // Position, rotate and scale the scene node of the orientation part
+  // Note the shape_orientation is composed with the msg_orientation
+  orientation_node_->setPosition(msg_position);
+  orientation_node_->setOrientation(msg_orientation * shape_orientation);
+  if(!shape_scale.isNaN())
+      orientation_node_->setScale(shape_scale);
   else
-  {
-    ROS_WARN_THROTTLE(1, "failed to compute eigen vectors/values for position. Is the covariance matrix correct?");
-    eigenvalues = Eigen::Vector3d::Zero();
-    eigenvectors = Eigen::Matrix3d::Identity();
-  }
-  makeRightHanded(eigenvectors, eigenvalues);
-
-  Ogre::Quaternion orientationQuaternion(Ogre::Matrix3(eigenvectors(0,0), eigenvectors(0,1), eigenvectors(0,2),
-                                                       eigenvectors(1,0), eigenvectors(1,1), eigenvectors(1,2),
-                                                       eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
-  orientation_msg_scale_->x = std::sqrt (eigenvalues[0]);
-  orientation_msg_scale_->y = std::sqrt (eigenvalues[1]);
-  orientation_msg_scale_->z = std::sqrt (eigenvalues[2]);
-  Ogre::Vector3 orientationScaling = (*orientation_msg_scale_) * orientation_scale_factor_;
-
-  // Finnaly position, rotate and scale the nodes
-  // NOTE: Remember position and orientation nodes are childs of frame_node_, which should be positioned to match
-  //       the frame defined by message's frame_id, and should be set externally by calling CovarianceVisual's
-  //       setFramePosition() and setFramePosition()
-  Ogre::Vector3 position(message.pose.position.x,message.pose.position.y,message.pose.position.z);
-  Ogre::Quaternion orientation(message.pose.orientation.w, message.pose.orientation.x, message.pose.orientation.y, message.pose.orientation.z);
-
-  position_node_->setPosition(position);
-  position_node_->setOrientation(positionQuaternion);
-
-  orientation_node_->setPosition(position);
-  orientation_node_->setOrientation(orientation * orientationQuaternion);
-
-  if(!positionScaling.isNaN())
-      position_node_->setScale(positionScaling);
-  else
-      ROS_WARN_STREAM("positionScaling contains NaN: " << positionScaling);
-
-  if(!orientationScaling.isNaN())
-      orientation_node_->setScale(orientationScaling);
-  else
-      ROS_WARN_STREAM("orientationScaling contains NaN: " << orientationScaling);
+      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
 }
 
 void CovarianceVisual::setScales( float pos_scale, float ori_scale)
