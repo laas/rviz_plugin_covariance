@@ -211,7 +211,7 @@ void PoseWithCovarianceDisplay::onInitialize()
                           axes_length_property_->getFloat(),
                           axes_radius_property_->getFloat() );
 
-  covariance_ = new CovarianceVisual(scene_manager_, axes_->getSceneNode());
+  covariance_ = new CovarianceVisual(scene_manager_, scene_node_);
 
   updateShapeChoice();
   updateColorAndAlpha();
@@ -355,14 +355,28 @@ void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCov
     return;
   }
 
+  Ogre::Vector3 frame_position;
+  Ogre::Quaternion frame_orientation; 
+  if( !context_->getFrameManager()->getTransform( message->header, frame_position, frame_orientation ))
+  {
+    ROS_ERROR( "Error recovering the transform from frame '%s' to frame '%s'",
+               message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
+    return;
+  }
+
   pose_valid_ = true;
   covariance_valid_ = true;
   updateShapeVisibility();
   updateCovarianceVisibility();
 
-  scene_node_->setPosition( position );
-  scene_node_->setOrientation( orientation );
+  axes_->setPosition( position );
+  axes_->setOrientation( orientation );
 
+  arrow_->setPosition( position );
+  arrow_->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ) );
+
+  covariance_->setFramePosition( frame_position );
+  covariance_->setFrameOrientation( frame_orientation );
   covariance_->setCovariance( message->pose );
 
   coll_handler_->setMessage( message );

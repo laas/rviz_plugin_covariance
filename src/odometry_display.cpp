@@ -314,6 +314,15 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
     return;
   }
 
+  Ogre::Vector3 frame_position;
+  Ogre::Quaternion frame_orientation; 
+  if( !context_->getFrameManager()->getTransform( message->header, frame_position, frame_orientation ))
+  {
+    ROS_ERROR( "Error recovering the transform from frame '%s' to frame '%s'",
+               message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
+    return;
+  }
+
   // If we arrive here, we're good. Continue...
 
   // Create a scene node, and attach the arrow and the covariance to it
@@ -326,16 +335,19 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
                             head_length_property_->getFloat(),
                             head_radius_property_->getFloat() );
   // The axis will be the parent of the covariance
-  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, axes->getSceneNode() );
+  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, scene_node_ );
 
   // Position the axes
   axes->setPosition( position );
   axes->setOrientation( orientation );
 
-  // Position the arrow
+  // Position the arrow. Remember the arrow points in -Z direction, so rotate the orientation before display.
   arrow->setPosition( position );
-  // Arrow points in -Z direction, so rotate the orientation before display.
   arrow->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
+
+  // Position the frame where the covariance is attached covariance
+  cov->setFramePosition( frame_position );
+  cov->setFrameOrientation( frame_orientation );
 
   // Set up arrow color
   QColor color = color_property_->getColor();

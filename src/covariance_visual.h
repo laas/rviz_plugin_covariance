@@ -87,6 +87,12 @@ public:
   virtual const Ogre::Quaternion& getOrientationCovarianceOrientation();
 
   /**
+   * \brief Get the scene node the frame this covariance is defined
+   * @return the scene node associated with frame this covariance is defined
+   */
+  Ogre::SceneNode* getFrameSceneNode() { return frame_node_; }
+
+  /**
    * \brief Get the scene node associated with the position covariance
    * @return the scene node associated with the position covariance
    */
@@ -114,7 +120,19 @@ public:
    */
   virtual void setVisible( bool visible );
 
+  /**
+   * \brief Sets position of the frame this covariance is attached
+   */
+  virtual void setFramePosition( const Ogre::Vector3& position );
+
+  /**
+   * \brief Sets orientation of the frame this covariance is attached
+   */
+  virtual void setFrameOrientation( const Ogre::Quaternion& orientation );
+
+
 private:
+  Ogre::SceneNode* frame_node_;
   Ogre::SceneNode* position_node_;
   Ogre::SceneNode* orientation_node_;
 

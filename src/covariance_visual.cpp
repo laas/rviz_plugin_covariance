@@ -24,10 +24,12 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
   position_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
   orientation_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f))
 {
-  position_node_ = parent_node->createChildSceneNode();
+  frame_node_ = parent_node->createChildSceneNode();
+
+  position_node_ = frame_node_->createChildSceneNode();
   position_shape_ = new rviz::Shape(rviz::Shape::Sphere, scene_manager_, position_node_);
 
-  orientation_node_ = parent_node->createChildSceneNode();
+  orientation_node_ = frame_node_->createChildSceneNode();
   orientation_shape_ = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_node_);
 
   setVisible( is_visible );
@@ -42,6 +44,7 @@ CovarianceVisual::~CovarianceVisual()
 
   scene_manager_->destroySceneNode( position_node_->getName() );
   scene_manager_->destroySceneNode( orientation_node_->getName() );
+  scene_manager_->destroySceneNode( frame_node_->getName() );
 }
 
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
@@ -122,9 +125,18 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
   orientation_msg_scale_->z = std::sqrt (eigenvalues[0]);
   Ogre::Vector3 orientationScaling = (*orientation_msg_scale_) * orientation_scale_factor_;
 
-  // Finnaly rotate and scale the nodes
+  // Finnaly position, rotate and scale the nodes
+  // NOTE: Remember position and orientation nodes are childs of frame_node_, which should be positioned to match
+  //       the frame defined by message's frame_id, and should be set externally by calling CovarianceVisual's
+  //       setFramePosition() and setFramePosition()
+  Ogre::Vector3 position(message.pose.position.x,message.pose.position.y,message.pose.position.z);
+  Ogre::Quaternion orientation(message.pose.orientation.w, message.pose.orientation.x, message.pose.orientation.y, message.pose.orientation.z);
+
+  position_node_->setPosition(position);
   position_node_->setOrientation(positionQuaternion);
-  orientation_node_->setOrientation(orientationQuaternion);
+
+  orientation_node_->setPosition(position);
+  orientation_node_->setOrientation(orientation * orientationQuaternion);
 
   if(!positionScaling.isNaN())
       position_node_->setScale(positionScaling);
@@ -203,8 +215,7 @@ void CovarianceVisual::setUserData( const Ogre::Any& data )
 
 void CovarianceVisual::setVisible( bool visible )
 {
-  position_node_->setVisible( visible );
-  orientation_node_->setVisible( visible );
+  frame_node_->setVisible( visible );
 }
 
 const Ogre::Vector3& CovarianceVisual::getPosition() 
@@ -215,6 +226,16 @@ const Ogre::Vector3& CovarianceVisual::getPosition()
 const Ogre::Quaternion& CovarianceVisual::getOrientation()
 {
   return position_node_->getOrientation();
+}
+
+void CovarianceVisual::setFramePosition( const Ogre::Vector3& position )
+{
+  frame_node_->setPosition( position );
+}
+
+void CovarianceVisual::setFrameOrientation( const Ogre::Quaternion& orientation )
+{
+  frame_node_->setOrientation( orientation );
 }
 
 } // namespace rviz
