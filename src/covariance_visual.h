@@ -6,6 +6,8 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/array.hpp>
 
+#include <geometry_msgs/PoseWithCovariance.h>
+
 namespace Ogre
 {
 class SceneManager;
@@ -31,8 +33,6 @@ namespace rviz_plugin_covariance
 class CovarianceVisual : public rviz::Object
 {
 public:
-  typedef boost::array<double, 36> covariance_type;
-
   /**
    * \brief Constructor
    *
@@ -79,7 +79,7 @@ public:
    * This effectively changes the orientation and scale of position and orientation 
    * covariance shapes
    */
-  virtual void setCovariance( covariance_type msg_covariance);
+  virtual void setCovariance( const geometry_msgs::PoseWithCovariance& message );
 
   virtual const Ogre::Vector3& getPositionCovarianceScale();
   virtual const Ogre::Quaternion& getPositionCovarianceOrientation();

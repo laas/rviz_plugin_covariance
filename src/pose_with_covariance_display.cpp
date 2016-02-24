@@ -363,7 +363,7 @@ void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCov
   scene_node_->setPosition( position );
   scene_node_->setOrientation( orientation );
 
-  covariance_->setCovariance( message->pose.covariance );
+  covariance_->setCovariance( message->pose );
 
   coll_handler_->setMessage( message );
 

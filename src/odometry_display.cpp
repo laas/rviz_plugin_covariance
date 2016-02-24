@@ -355,7 +355,7 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   cov->setOrientationScale( covariance_property_->getOrientationScale() );
 
   // Set up the covariance based on the message
-  cov->setCovariance(message->pose.covariance);
+  cov->setCovariance(message->pose);
 
   // Show/Hide things based on current properties
   bool use_arrow = (shape_property_->getOptionInt() == ArrowShape);

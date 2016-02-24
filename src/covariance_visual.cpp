@@ -58,19 +58,19 @@ CovarianceVisual::~CovarianceVisual()
 // - The rotation will make the x-axis of the shape coincide with the eigenvector of the largest eigenvalue, the 
 //   y-axis coincide with the eigenvector of the second largest eigenvalue, and the z-axis coincide with the 
 //   remaining eigenvector.
-void CovarianceVisual::setCovariance( CovarianceVisual::covariance_type msg_covariance)
+void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& message )
 {
   // check for NaN in covariance
   for (unsigned i = 0; i < 3; ++i)
   {
-      if(isnan(msg_covariance[i]))
+      if(isnan(message.covariance[i]))
       {
           ROS_WARN_THROTTLE(1, "covariance contains NaN");
           return;
       }
   }
 
-  Eigen::Map< Eigen::Matrix<double,6,6> > covariance(msg_covariance.c_array());
+  Eigen::Map<const Eigen::Matrix<double,6,6> > covariance(message.covariance.data());
   Eigen::Vector3d eigenvalues = Eigen::Vector3d::Identity();
   Eigen::Matrix3d eigenvectors = Eigen::Matrix3d::Zero();
 
