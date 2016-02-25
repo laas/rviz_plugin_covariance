@@ -64,7 +64,7 @@ void makeRightHanded( Eigen::Matrix3d& eigenvectors, Eigen::Vector3d& eigenvalue
   }
 }
 
-void computeShapeScaleAndOrientation(const Eigen::Matrix3d& covariance, Ogre::Vector3& shape, Ogre::Quaternion& orientation)
+void computeShapeScaleAndOrientation(const Eigen::Matrix3d& covariance, Ogre::Vector3& scale, Ogre::Quaternion& orientation)
 {
   Eigen::Vector3d eigenvalues(Eigen::Vector3d::Identity());
   Eigen::Matrix3d eigenvectors(Eigen::Matrix3d::Zero());
@@ -94,9 +94,9 @@ void computeShapeScaleAndOrientation(const Eigen::Matrix3d& covariance, Ogre::Ve
                                                eigenvectors(2,0), eigenvectors(2,1), eigenvectors(2,2)));
 
   // Define the scale. eigenvalues are the variances, so we take the sqrt to draw the standard deviation
-  shape.x = std::sqrt (eigenvalues[0]);
-  shape.y = std::sqrt (eigenvalues[1]);
-  shape.z = std::sqrt (eigenvalues[2]);
+  scale.x = 2*std::sqrt (eigenvalues[0]);
+  scale.y = 2*std::sqrt (eigenvalues[1]);
+  scale.z = 2*std::sqrt (eigenvalues[2]);
 }
 
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
