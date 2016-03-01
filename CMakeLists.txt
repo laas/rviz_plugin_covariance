@@ -24,7 +24,6 @@ set(SOURCE_FILES
   src/covariance_visual.cpp
   src/covariance_property.cpp
   src/pose_with_covariance_display.cpp
-  src/pose_with_covariance_visual.cpp
   src/odometry_display.cpp
   ${MOC_FILES}
 )
