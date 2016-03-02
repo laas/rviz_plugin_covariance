@@ -14,12 +14,17 @@ include_directories(${EIGEN_INCLUDE_DIR})
 add_definitions(-DQT_NO_KEYWORDS)
 
 qt4_wrap_cpp(MOC_FILES
-  src/covariance_display.h
+  src/pose_with_covariance_display.h
+  src/odometry_display.h
+  src/covariance_visual.h
+  src/covariance_property.h
 )
 
 set(SOURCE_FILES
-  src/covariance_display.cpp
   src/covariance_visual.cpp
+  src/covariance_property.cpp
+  src/pose_with_covariance_display.cpp
+  src/odometry_display.cpp
   ${MOC_FILES}
 )
 

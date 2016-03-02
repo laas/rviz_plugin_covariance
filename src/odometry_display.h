@@ -1,92 +1,108 @@
-// -*- c++-mode -*-
-#ifndef ODOMETRY_DISPLAY_H
-# define ODOMETRY_DISPLAY_H
-# include <message_filters/subscriber.h>
-# include <tf/message_filter.h>
-# include <nav_msgs/Odometry.h>
-# include <rviz/display.h>
+#ifndef ODOMETRY_DISPLAY_H_
+#define ODOMETRY_DISPLAY_H_
 
-namespace Ogre
+#include <deque>
+
+#include <boost/shared_ptr.hpp>
+#include <boost/thread/mutex.hpp>
+
+#ifndef Q_MOC_RUN
+#include <message_filters/subscriber.h>
+#include <tf/message_filter.h>
+#endif
+
+#include <rviz/message_filter_display.h>
+#include <nav_msgs/Odometry.h>
+
+namespace rviz
 {
-  class SceneNode;
+class Arrow;
+class Axes;
+class ColorProperty;
+class FloatProperty;
+class IntProperty;
+class EnumProperty;
 }
 
 namespace rviz_plugin_covariance
 {
-  class CovarianceVisual;
 
-  class OdometryDisplay: public rviz::Display
-    {
-    public:
-      explicit OdometryDisplay ();
-      virtual ~OdometryDisplay ();
+class CovarianceVisual;
+class CovarianceProperty;
 
-      virtual void onInitialize ();
-      virtual void fixedFrameChanged ();
-      virtual void reset ();
-      virtual void createProperties ();
+/**
+ * \class OdometryDisplay
+ * \brief Accumulates and displays the pose from a nav_msgs::Odometry message
+ */
+class OdometryDisplay: public rviz::MessageFilterDisplay<nav_msgs::Odometry>
+{
+Q_OBJECT
+public:
+  enum Shape
+  {
+    ArrowShape,
+    AxesShape,
+  };
 
-      void setTopic (const std::string& topic);
+  OdometryDisplay();
+  virtual ~OdometryDisplay();
 
-      const std::string& getTopic () const
-      {
-	return topic_;
-      }
+  // Overides of MessageFilterDisplay
+  virtual void onInitialize();
+  virtual void reset();
+  // Overides of Display
+  virtual void update( float wall_dt, float ros_dt );
 
-      void setColor (const rviz::Color& color);
+protected:
+  /** @brief Overridden from MessageFilterDisplay to get Arrow/Axes visibility correct. */
+  virtual void onEnable();
 
-      const rviz::Color& getColor () const
-      {
-	return color_;
-      }
+private Q_SLOTS:
+  void updateShapeChoice();
+  void updateShapeVisibility();
+  void updateColorAndAlpha();
+  void updateArrowsGeometry();
+  void updateAxisGeometry();
+  void updateCovarianceChoice();
+  void updateCovarianceVisibility();
+  void updateCovarianceColorAndAlphaAndScale();
 
-      void setAlpha (float alpha);
+private:
+  void updateGeometry( rviz::Arrow* arrow );
+  void updateGeometry( rviz::Axes* axes );
+  void clear();
 
-      float getAlpha ()
-      {
-	return alpha_;
-      }
+  virtual void processMessage( const nav_msgs::Odometry::ConstPtr& message );
 
-      void setScale (float scale);
+  typedef std::deque<rviz::Arrow*> D_Arrow;
+  typedef std::deque<rviz::Axes*> D_Axes;
+  typedef std::deque<CovarianceVisual*> D_Covariance;
 
-      float getScale ()
-      {
-	return scale_;
-      }
+  D_Arrow arrows_;
+  D_Axes axes_;
+  D_Covariance covariances_;
 
-    protected:
-      virtual void onEnable ();
-      virtual void onDisable ();
+  nav_msgs::Odometry::ConstPtr last_used_message_;
 
-    private:
-      void incomingMessage
-	(const nav_msgs::Odometry::ConstPtr& msg);
+  rviz::EnumProperty* shape_property_;
 
-      void subscribe ();
-      void unsubscribe ();
+  rviz::ColorProperty* color_property_;
+  rviz::FloatProperty* alpha_property_;
+  rviz::FloatProperty* position_tolerance_property_;
+  rviz::FloatProperty* angle_tolerance_property_;
+  rviz::IntProperty* keep_property_;
+  
+  rviz::FloatProperty* head_radius_property_;
+  rviz::FloatProperty* head_length_property_;
+  rviz::FloatProperty* shaft_radius_property_;
+  rviz::FloatProperty* shaft_length_property_;
 
-      void clear ();
+  rviz::FloatProperty* axes_length_property_;
+  rviz::FloatProperty* axes_radius_property_;
 
-      void updateColorAndAlphaAndScale ();
+  CovarianceProperty* covariance_property_;
+};
 
-      CovarianceVisual* visual_;
+} // namespace rviz_plugin_covariance
 
-      Ogre::SceneNode* scene_node_;
-
-      message_filters::Subscriber<nav_msgs::Odometry> sub_;
-      tf::MessageFilter<nav_msgs::Odometry>* tf_filter_;
-      int messages_received_;
-
-      rviz::Color color_;
-      std::string topic_;
-      float alpha_;
-      float scale_;
-
-      rviz::ColorPropertyWPtr color_property_;
-      rviz::ROSTopicStringPropertyWPtr topic_property_;
-      rviz::FloatPropertyWPtr alpha_property_;
-      rviz::FloatPropertyWPtr scale_property_;
-    };
-} // end namespace rviz_plugin_covariance
-
-#endif // ODOMETRY_DISPLAY_H
+#endif /* RVIZ_ODOMETRY_DISPLAY_H_ */
