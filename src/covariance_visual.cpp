@@ -204,6 +204,43 @@ void radianScaleToMetricScale(Ogre::Real & radian_scale)
   radian_scale = 2.0 * tan(radian_scale);
 }
 
+// void set3DOrientationShape(const Eigen::Matrix2d& cov, msg_scale, node, position, orientation, offset, axis_alignment)
+void setOrientationShape(
+  const Eigen::Matrix2d& cov, Ogre::Vector3& msg_scale, Ogre::SceneNode* node, float scale_factor,
+  const Ogre::Vector3& position, const Ogre::Quaternion& orientation,
+  const Ogre::Vector3& offset, const Ogre::Quaternion& axis_alignment)
+{
+  Ogre::Vector3 shape_scale;
+  Ogre::Quaternion shape_orientation;
+  // Compute shape and orientation for the orientation shape
+  // NOTE: The cylinder mesh is oriented along its y axis, thus we want to flat it out into the XZ plane
+  computeShapeScaleAndOrientation2D(cov, shape_scale, shape_orientation, XZ_PLANE);
+  // The computed scale is equivalent to twice the standard deviation _in radians_.
+  // So we need to convert it to the linear scale of the shape using tan().
+  // Also, we bound the maximum std to 85 deg.
+  radianScaleToMetricScale(shape_scale.x);
+  radianScaleToMetricScale(shape_scale.z);
+  // Give a minimal height for the cylinder for better visualization
+  shape_scale.y = 0.001;
+  // store the shape (needed if the scale factor changes later)
+  // Note it's returned by parameter
+  msg_scale = shape_scale;
+  // Apply the scale factor
+  shape_scale *= scale_factor;
+
+  // Position, rotate and scale the scene node of the orientation part
+  // Note we position the cylinder along an axis using a offset
+  node->setPosition(position + orientation * (scale_factor * offset));
+  // Note the shape_orientation is composed with the orientation.
+  // The axis_aligment should make the cylinder perpendicular to the axis
+  node->setOrientation(orientation * axis_alignment * shape_orientation);
+  if(!shape_scale.isNaN())
+      node->setScale(shape_scale);
+  else
+      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+
+}
+
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
 // separatelly and use their values to rotate and scale the covarance shapes.
 // WARNING: rotations can be defined in the static frame (header.frame_id of a stamped message) or in the 
@@ -246,79 +283,41 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
   else
       ROS_WARN_STREAM("position shape_scale contains NaN: " << shape_scale);
 
-  // Compute shape and orientation for the orientation shape on the x-axis (roll)
-  // NOTE: The cylinder mesh is oriented along its y axis, thus we want to flat it out into the XZ plane
-  computeShapeScaleAndOrientation2D(covariance.bottomRightCorner<2,2>(), shape_scale, shape_orientation, XZ_PLANE);
-  // The computed scale is equivalent to twice the standard deviation _in radians_.
-  // So we need to convert it to the linear scale of the shape using tan().
-  // Also, we bound the maximum std to 85 deg.
-  radianScaleToMetricScale(shape_scale.x);
-  radianScaleToMetricScale(shape_scale.z);
-  // Give a minimal height for the cylinder for better visualization
-  shape_scale.y = 0.001;
-  // store the shape (needed if the scale factor changes later)
-  (*orientation_x_msg_scale_) = shape_scale;
-  // update the shape by the scale factor
-  shape_scale *= orientation_scale_factor_;
-
-  // Position, rotate and scale the scene node of the orientation part
-  // Note we position the cylinder along the x-axis
-  orientation_x_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_X));
-  // Note the shape_orientation is composed with the msg_orientation.
-  // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
-  orientation_x_node_->setOrientation(msg_orientation *
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) *
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Z ) *
-    shape_orientation);
-  if(!shape_scale.isNaN())
-      orientation_x_node_->setScale(shape_scale);
-  else
-      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+  // Set shape and orientation for the orientation shape on the x-axis (roll)
+  setOrientationShape(
+    covariance.bottomRightCorner<2,2>(),
+    (*orientation_x_msg_scale_),
+    orientation_x_node_,
+    orientation_scale_factor_,
+    msg_position,
+    msg_orientation,
+    Ogre::Vector3::UNIT_X,
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) * Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Z ));
 
   // Repeat the same computation for the other axes
   // y-axis (pitch)
   Eigen::Matrix2d cov_roll_yaw;
   cov_roll_yaw << covariance(3,3), covariance(3,5), covariance(5,3), covariance(5,5);
-  computeShapeScaleAndOrientation2D(cov_roll_yaw, shape_scale, shape_orientation, XZ_PLANE);
-  radianScaleToMetricScale(shape_scale.x);
-  radianScaleToMetricScale(shape_scale.z);
-  shape_scale.y = 0.001;
-  (*orientation_y_msg_scale_) = shape_scale;
-  shape_scale *= orientation_scale_factor_;
-
-  // Position, rotate and scale the scene node of the orientation part
-  // Note we position the cylinder along the y-axis
-  orientation_y_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_Y));
-  // Note the shape_orientation is composed with the msg_orientation.
-  // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
-  orientation_y_node_->setOrientation(msg_orientation *
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Y ) *
-    shape_orientation);
-  if(!shape_scale.isNaN())
-      orientation_y_node_->setScale(shape_scale);
-  else
-      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+  setOrientationShape(
+    cov_roll_yaw,
+    (*orientation_y_msg_scale_),
+    orientation_y_node_,
+    orientation_scale_factor_,
+    msg_position,
+    msg_orientation,
+    Ogre::Vector3::UNIT_Y,
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Y ));
 
   // z-axis (yaw)
-  computeShapeScaleAndOrientation2D(covariance.block<2,2>(3,3), shape_scale, shape_orientation, XZ_PLANE);
-  radianScaleToMetricScale(shape_scale.x);
-  radianScaleToMetricScale(shape_scale.z);
-  shape_scale.y = 0.001;
-  (*orientation_z_msg_scale_) = shape_scale;
-  shape_scale *= orientation_scale_factor_;
-
-  // Position, rotate and scale the scene node of the orientation part
-  // Note we position the cylinder along the y-axis
-  orientation_z_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_Z));
-  // Note the shape_orientation is composed with the msg_orientation.
-  // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
-  orientation_z_node_->setOrientation(msg_orientation *
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) *
-    shape_orientation);
-  if(!shape_scale.isNaN())
-      orientation_z_node_->setScale(shape_scale);
-  else
-      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+  setOrientationShape(
+    covariance.block<2,2>(3,3),
+    (*orientation_z_msg_scale_),
+    orientation_z_node_,
+    orientation_scale_factor_,
+    msg_position,
+    msg_orientation,
+    Ogre::Vector3::UNIT_Z,
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ));
 
 }
 
