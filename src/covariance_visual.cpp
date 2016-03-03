@@ -26,15 +26,23 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
 : Object( scene_manager ),
   position_scale_factor_( 1.0f ), orientation_scale_factor_( 1.0f ),
   position_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
-  orientation_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f))
+  orientation_x_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
+  orientation_y_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
+  orientation_z_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f))
 {
   frame_node_ = parent_node->createChildSceneNode();
 
   position_node_ = frame_node_->createChildSceneNode();
   position_shape_ = new rviz::Shape(rviz::Shape::Sphere, scene_manager_, position_node_);
 
-  orientation_node_ = frame_node_->createChildSceneNode();
-  orientation_shape_ = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_node_);
+  orientation_x_node_ = frame_node_->createChildSceneNode();
+  orientation_x_shape_ = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_x_node_);
+
+  orientation_y_node_ = frame_node_->createChildSceneNode();
+  orientation_y_shape_ = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_y_node_);
+
+  orientation_z_node_ = frame_node_->createChildSceneNode();
+  orientation_z_shape_ = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_z_node_);
 
   setVisible( is_visible );
 
@@ -44,10 +52,14 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
 CovarianceVisual::~CovarianceVisual()
 {
   delete position_shape_;
-  delete orientation_shape_;
+  delete orientation_x_shape_;
+  delete orientation_y_shape_;
+  delete orientation_z_shape_;
 
   scene_manager_->destroySceneNode( position_node_->getName() );
-  scene_manager_->destroySceneNode( orientation_node_->getName() );
+  scene_manager_->destroySceneNode( orientation_x_node_->getName() );
+  scene_manager_->destroySceneNode( orientation_y_node_->getName() );
+  scene_manager_->destroySceneNode( orientation_z_node_->getName() );
   scene_manager_->destroySceneNode( frame_node_->getName() );
 }
 
@@ -194,6 +206,10 @@ void radianScaleToMetricScale(Ogre::Real & radian_scale)
 
 // This method compute the eigenvalues and eigenvectors of the position and orientation part covariance matrix
 // separatelly and use their values to rotate and scale the covarance shapes.
+// WARNING: rotations can be defined in the static frame (header.frame_id of a stamped message) or in the 
+//          rotational (local, child_frame_id of a Odometry message). The implemented method below consider 
+//          the rotations as being defined in the LOCAL frame. It won't work properly in the other case.
+// FIXME: Consider orientations being expressed in both static and rotational frames
 void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& message )
 {
   // check for NaN in covariance
@@ -241,23 +257,69 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
   // Give a minimal height for the cylinder for better visualization
   shape_scale.y = 0.001;
   // store the shape (needed if the scale factor changes later)
-  (*orientation_msg_scale_) = shape_scale;
+  (*orientation_x_msg_scale_) = shape_scale;
   // update the shape by the scale factor
   shape_scale *= orientation_scale_factor_;
 
   // Position, rotate and scale the scene node of the orientation part
   // Note we position the cylinder along the x-axis
-  orientation_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3(1.0,0,0)));
+  orientation_x_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_X));
   // Note the shape_orientation is composed with the msg_orientation.
   // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
-  orientation_node_->setOrientation(msg_orientation *
+  orientation_x_node_->setOrientation(msg_orientation *
     Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) *
     Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Z ) *
     shape_orientation);
   if(!shape_scale.isNaN())
-      orientation_node_->setScale(shape_scale);
+      orientation_x_node_->setScale(shape_scale);
   else
       ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+
+  // Repeat the same computation for the other axes
+  // y-axis (pitch)
+  Eigen::Matrix2d cov_roll_yaw;
+  cov_roll_yaw << covariance(3,3), covariance(3,5), covariance(5,3), covariance(5,5);
+  computeShapeScaleAndOrientation2D(cov_roll_yaw, shape_scale, shape_orientation, XZ_PLANE);
+  radianScaleToMetricScale(shape_scale.x);
+  radianScaleToMetricScale(shape_scale.z);
+  shape_scale.y = 0.001;
+  (*orientation_y_msg_scale_) = shape_scale;
+  shape_scale *= orientation_scale_factor_;
+
+  // Position, rotate and scale the scene node of the orientation part
+  // Note we position the cylinder along the y-axis
+  orientation_y_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_Y));
+  // Note the shape_orientation is composed with the msg_orientation.
+  // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
+  orientation_y_node_->setOrientation(msg_orientation *
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Y ) *
+    shape_orientation);
+  if(!shape_scale.isNaN())
+      orientation_y_node_->setScale(shape_scale);
+  else
+      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+
+  // z-axis (yaw)
+  computeShapeScaleAndOrientation2D(covariance.block<2,2>(3,3), shape_scale, shape_orientation, XZ_PLANE);
+  radianScaleToMetricScale(shape_scale.x);
+  radianScaleToMetricScale(shape_scale.z);
+  shape_scale.y = 0.001;
+  (*orientation_z_msg_scale_) = shape_scale;
+  shape_scale *= orientation_scale_factor_;
+
+  // Position, rotate and scale the scene node of the orientation part
+  // Note we position the cylinder along the y-axis
+  orientation_z_node_->setPosition(msg_position + msg_orientation * (orientation_scale_factor_ * Ogre::Vector3::UNIT_Z));
+  // Note the shape_orientation is composed with the msg_orientation.
+  // The rotations in the midle make the cylinder perpendicular to pose's x-axis.
+  orientation_z_node_->setOrientation(msg_orientation *
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) *
+    shape_orientation);
+  if(!shape_scale.isNaN())
+      orientation_z_node_->setScale(shape_scale);
+  else
+      ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
+
 }
 
 void CovarianceVisual::setScales( float pos_scale, float ori_scale)
@@ -275,7 +337,10 @@ void CovarianceVisual::setPositionScale( float pos_scale )
 void CovarianceVisual::setOrientationScale( float ori_scale )
 {
   orientation_scale_factor_ = ori_scale;
-  orientation_node_->setScale((*orientation_msg_scale_) * orientation_scale_factor_);
+  orientation_x_node_->setScale((*orientation_x_msg_scale_) * orientation_scale_factor_);
+  orientation_y_node_->setScale((*orientation_y_msg_scale_) * orientation_scale_factor_);
+  orientation_z_node_->setScale((*orientation_z_msg_scale_) * orientation_scale_factor_);
+  // TODO: Correct positions here as well
 }
 
 void CovarianceVisual::setPositionColor(const Ogre::ColourValue& c)
@@ -285,7 +350,10 @@ void CovarianceVisual::setPositionColor(const Ogre::ColourValue& c)
 
 void CovarianceVisual::setOrientationColor(const Ogre::ColourValue& c)
 {
-  orientation_shape_->setColor(c);
+  // FIXME: Is it better fix to rgb color? Or give the option to the user
+  orientation_x_shape_->setColor(c);
+  orientation_y_shape_->setColor(c);
+  orientation_z_shape_->setColor(c);
 }
 
 void CovarianceVisual::setPositionColor( float r, float g, float b, float a )
@@ -308,20 +376,12 @@ const Ogre::Quaternion& CovarianceVisual::getPositionCovarianceOrientation()
   return position_node_->getOrientation();
 }
 
-const Ogre::Vector3& CovarianceVisual::getOrientationCovarianceScale()
-{
-  return orientation_node_->getScale();
-}
-
-const Ogre::Quaternion& CovarianceVisual::getOrientationCovarianceOrientation()
-{
-  return orientation_node_->getOrientation();
-}
-
 void CovarianceVisual::setUserData( const Ogre::Any& data )
 {
   position_shape_->setUserData( data );
-  orientation_shape_->setUserData( data );
+  orientation_x_shape_->setUserData( data );
+  orientation_y_shape_->setUserData( data );
+  orientation_z_shape_->setUserData( data );
 }
 
 void CovarianceVisual::setVisible( bool visible )

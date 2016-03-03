@@ -83,8 +83,6 @@ public:
 
   virtual const Ogre::Vector3& getPositionCovarianceScale();
   virtual const Ogre::Quaternion& getPositionCovarianceOrientation();
-  virtual const Ogre::Vector3& getOrientationCovarianceScale();
-  virtual const Ogre::Quaternion& getOrientationCovarianceOrientation();
 
   /**
    * \brief Get the scene node the frame this covariance is defined
@@ -102,10 +100,12 @@ public:
    * \brief Get the scene node associated with the orientation covariance
    * @return the scene node associated with the orientation covariance
    */
-  Ogre::SceneNode* getOrientationSceneNode() { return orientation_node_; }
+  // TODO: Add methods to get other orientation scene nodes as well
+  Ogre::SceneNode* getOrientationSceneNode() { return orientation_x_node_; }
 
   rviz::Shape* getPositionShape() { return position_shape_; }
-  rviz::Shape* getOrientationShape() { return orientation_shape_; }
+  // TODO: Add methods to get other orientation shapes as well
+  rviz::Shape* getOrientationShape() { return orientation_x_shape_; }
 
   /**
    * \brief Sets user data on all ogre objects we own
@@ -134,16 +134,22 @@ public:
 private:
   Ogre::SceneNode* frame_node_;
   Ogre::SceneNode* position_node_;
-  Ogre::SceneNode* orientation_node_;
+  Ogre::SceneNode* orientation_x_node_;
+  Ogre::SceneNode* orientation_y_node_;
+  Ogre::SceneNode* orientation_z_node_;
 
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
-  rviz::Shape* orientation_shape_;   ///< Cone used for the orientation covariance
+  rviz::Shape* orientation_x_shape_;   ///< Cylinder used for the covariance of pitch-yaw
+  rviz::Shape* orientation_y_shape_;   ///< Cylinder used for the covariance of roll-yaw
+  rviz::Shape* orientation_z_shape_;   ///< Cylinder used for the covariance of roll-pitch
 
   float position_scale_factor_;
   float orientation_scale_factor_;
 
   boost::scoped_ptr<Ogre::Vector3> position_msg_scale_;
-  boost::scoped_ptr<Ogre::Vector3> orientation_msg_scale_;
+  boost::scoped_ptr<Ogre::Vector3> orientation_x_msg_scale_;
+  boost::scoped_ptr<Ogre::Vector3> orientation_y_msg_scale_;
+  boost::scoped_ptr<Ogre::Vector3> orientation_z_msg_scale_;
 
 // Hide Object methods we don't want to expose
 // NOTE: Apparently we still need to define them...
