@@ -265,6 +265,9 @@ void PoseWithCovarianceDisplay::updateCovarianceColorAndAlphaAndScale()
   covariance_->setOrientationColor( color );
   covariance_->setOrientationScale( covariance_property_->getOrientationScale() );
 
+  bool use_rotating_frame = ( covariance_property_->getOrientationFrameOptionInt() == CovarianceProperty::Rotating );
+  covariance_->setRotatingFrame( use_rotating_frame );
+
   context_->queueRender();
 }
 

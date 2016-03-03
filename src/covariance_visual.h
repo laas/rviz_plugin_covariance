@@ -41,7 +41,7 @@ public:
    * @param pos_scale Scale of the position covariance
    * @param ori_scale Scale of the orientation covariance
    */
-  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible = true, float pos_scale = 1.0f, float ori_scale = 0.1f);
+  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible = true, float pos_scale = 1.0f, float ori_scale = 0.1f, bool use_rotating_frame = true);
   virtual ~CovarianceVisual();
 
   /**
@@ -140,6 +140,10 @@ public:
    */
   virtual void setFrameOrientation( const Ogre::Quaternion& orientation );
 
+  /**
+   * \brief Sets which frame to attach the covariance of the orientation
+   */
+  virtual void setRotatingFrame( bool use_rotating_frame );
 
 private:
   Ogre::SceneNode* frame_node_;
@@ -160,6 +164,8 @@ private:
   boost::scoped_ptr<Ogre::Vector3> orientation_x_msg_scale_;
   boost::scoped_ptr<Ogre::Vector3> orientation_y_msg_scale_;
   boost::scoped_ptr<Ogre::Vector3> orientation_z_msg_scale_;
+
+  bool use_rotating_frame_;
 
 // Hide Object methods we don't want to expose
 // NOTE: Apparently we still need to define them...

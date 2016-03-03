@@ -22,13 +22,14 @@ double deg2rad (double degrees) {
     return degrees * 4.0 * atan (1.0) / 180.0;
 }
 
-CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible, float pos_scale, float ori_scale)
+CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_visible, float pos_scale, float ori_scale, bool use_rotating_frame)
 : Object( scene_manager ),
   position_scale_factor_( 1.0f ), orientation_scale_factor_( 1.0f ),
   position_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
   orientation_x_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
   orientation_y_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
-  orientation_z_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f))
+  orientation_z_msg_scale_(new Ogre::Vector3(0.0f,0.0f,0.0f)),
+  use_rotating_frame_(use_rotating_frame)
 {
   frame_node_ = parent_node->createChildSceneNode();
 
@@ -208,7 +209,8 @@ void radianScaleToMetricScale(Ogre::Real & radian_scale)
 void setOrientationShape(
   const Eigen::Matrix2d& cov, Ogre::Vector3& msg_scale, Ogre::SceneNode* node, float scale_factor,
   const Ogre::Vector3& position, const Ogre::Quaternion& orientation,
-  const Ogre::Vector3& offset, const Ogre::Quaternion& axis_alignment)
+  const Ogre::Vector3& offset, const Ogre::Quaternion& axis_alignment,
+  bool use_rotating_frame)
 {
   Ogre::Vector3 shape_scale;
   Ogre::Quaternion shape_orientation;
@@ -230,14 +232,18 @@ void setOrientationShape(
 
   // Position, rotate and scale the scene node of the orientation part
   // Note we position the cylinder along an axis using a offset
-  node->setPosition(position + orientation * (scale_factor * offset));
-  // Note the shape_orientation is composed with the orientation.
   // The axis_aligment should make the cylinder perpendicular to the axis
-  node->setOrientation(orientation * axis_alignment * shape_orientation);
-
-  // FIXME: The following lines can be used if the message rotation is being represented in the static frame
-  // node->setPosition(position + scale_factor * offset);
-  // node->setOrientation(axis_alignment * shape_orientation);
+  if(use_rotating_frame)
+  {
+    // Use orientation to attach the shape to the rotating frame
+    node->setPosition(position + orientation * (scale_factor * offset));
+    node->setOrientation(orientation * axis_alignment * shape_orientation);
+  }
+  else
+  {
+    node->setPosition(position + scale_factor * offset);
+    node->setOrientation(axis_alignment * shape_orientation);
+  }
 
   if(!shape_scale.isNaN())
       node->setScale(shape_scale);
@@ -297,7 +303,8 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
     msg_position,
     msg_orientation,
     Ogre::Vector3::UNIT_X,
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) * Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Z ));
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ) * Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Z ),
+    use_rotating_frame_);
 
   // Repeat the same computation for the other axes
   // y-axis (pitch)
@@ -311,7 +318,8 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
     msg_position,
     msg_orientation,
     Ogre::Vector3::UNIT_Y,
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Y ));
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_Y ),
+    use_rotating_frame_);
 
   // z-axis (yaw)
   setOrientationShape(
@@ -322,8 +330,8 @@ void CovarianceVisual::setCovariance( const geometry_msgs::PoseWithCovariance& m
     msg_position,
     msg_orientation,
     Ogre::Vector3::UNIT_Z,
-    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ));
-
+    Ogre::Quaternion( Ogre::Degree( 90 ), Ogre::Vector3::UNIT_X ),
+    use_rotating_frame_);
 }
 
 void CovarianceVisual::setScales( float pos_scale, float ori_scale)
@@ -423,6 +431,11 @@ void CovarianceVisual::setFramePosition( const Ogre::Vector3& position )
 void CovarianceVisual::setFrameOrientation( const Ogre::Quaternion& orientation )
 {
   frame_node_->setOrientation( orientation );
+}
+
+void CovarianceVisual::setRotatingFrame( bool use_rotating_frame )
+{
+  use_rotating_frame_ = use_rotating_frame;
 }
 
 } // namespace rviz
