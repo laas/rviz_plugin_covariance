@@ -234,6 +234,11 @@ void setOrientationShape(
   // Note the shape_orientation is composed with the orientation.
   // The axis_aligment should make the cylinder perpendicular to the axis
   node->setOrientation(orientation * axis_alignment * shape_orientation);
+
+  // FIXME: The following lines can be used if the message rotation is being represented in the static frame
+  // node->setPosition(position + scale_factor * offset);
+  // node->setOrientation(axis_alignment * shape_orientation);
+
   if(!shape_scale.isNaN())
       node->setScale(shape_scale);
   else
