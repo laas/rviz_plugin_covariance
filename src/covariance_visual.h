@@ -121,6 +121,16 @@ public:
   virtual void setVisible( bool visible );
 
   /**
+   * \brief Sets visibility of the position part of this covariance
+   */
+  virtual void setPositionVisible( bool visible );
+
+  /**
+   * \brief Sets visibility of the orientation part of this covariance
+   */
+  virtual void setOrientationVisible( bool visible );
+
+  /**
    * \brief Sets position of the frame this covariance is attached
    */
   virtual void setFramePosition( const Ogre::Vector3& position );

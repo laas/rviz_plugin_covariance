@@ -393,6 +393,18 @@ void CovarianceVisual::setVisible( bool visible )
   frame_node_->setVisible( visible );
 }
 
+void CovarianceVisual::setPositionVisible( bool visible )
+{
+  position_node_->setVisible( visible );
+}
+
+void CovarianceVisual::setOrientationVisible( bool visible )
+{
+  orientation_x_node_->setVisible( visible );
+  orientation_y_node_->setVisible( visible );
+  orientation_z_node_->setVisible( visible );
+}
+
 const Ogre::Vector3& CovarianceVisual::getPosition() 
 {
   return position_node_->getPosition();

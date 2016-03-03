@@ -334,7 +334,17 @@ void PoseWithCovarianceDisplay::updateCovarianceVisibility()
   else
   {
     bool show_covariance = covariance_property_->getBool();
-    covariance_->setVisible( show_covariance );
+    if( !show_covariance )
+    {
+      covariance_->setVisible( false );
+    }
+    else
+    {
+      bool show_position_covariance = covariance_property_->getPositionBool();
+      covariance_->setPositionVisible( show_position_covariance );
+      bool show_orientation_covariance = covariance_property_->getOrientationBool();
+      covariance_->setOrientationVisible( show_orientation_covariance );
+    }
   }
 }
 
