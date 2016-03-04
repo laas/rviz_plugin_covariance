@@ -188,10 +188,7 @@ PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
                                              this, SLOT( updateAxisGeometry() ));
 
   covariance_property_ = new CovarianceProperty( "Covariance", true, "Whether or not the covariances of the messages should be shown.",
-                                             this, SLOT( updateCovarianceChoice() ));
-  
-  connect(covariance_property_, SIGNAL( childrenChanged() ), this, SLOT( updateCovarianceColorAndAlphaAndScale() ));
-
+                                             this, SLOT( queueRender() ));
 }
 
 void PoseWithCovarianceDisplay::onInitialize()
@@ -211,11 +208,11 @@ void PoseWithCovarianceDisplay::onInitialize()
                           axes_length_property_->getFloat(),
                           axes_radius_property_->getFloat() );
 
-  covariance_ = new CovarianceVisual(scene_manager_, scene_node_);
+  covariance_ = boost::make_shared<CovarianceVisual>(scene_manager_, scene_node_);
+  covariance_property_->pushBackVisual( covariance_ );
 
   updateShapeChoice();
   updateColorAndAlpha();
-  updateCovarianceColorAndAlphaAndScale();
 
   coll_handler_.reset( new PoseWithCovarianceDisplaySelectionHandler( this, context_ ));
   coll_handler_->addTrackedObjects( arrow_->getSceneNode() );
@@ -230,7 +227,6 @@ PoseWithCovarianceDisplay::~PoseWithCovarianceDisplay()
   {
     delete arrow_;
     delete axes_;
-    delete covariance_;
   }
 }
 
@@ -238,7 +234,6 @@ void PoseWithCovarianceDisplay::onEnable()
 {
   MFDClass::onEnable();
   updateShapeVisibility();
-  updateCovarianceVisibility();
 }
 
 void PoseWithCovarianceDisplay::updateColorAndAlpha()
@@ -247,26 +242,6 @@ void PoseWithCovarianceDisplay::updateColorAndAlpha()
   color.a = alpha_property_->getFloat();
 
   arrow_->setColor( color );
-
-  context_->queueRender();
-}
-
-void PoseWithCovarianceDisplay::updateCovarianceColorAndAlphaAndScale()
-{
-  Ogre::ColourValue color = covariance_property_->getPositionOgreColor();
-  color.a = covariance_property_->getPositionAlpha();
-
-  covariance_->setPositionColor( color );
-  covariance_->setPositionScale( covariance_property_->getPositionScale() );
-
-  color = covariance_property_->getOrientationOgreColor();
-  color.a = covariance_property_->getOrientationAlpha();
-
-  covariance_->setOrientationColor( color );
-  covariance_->setOrientationScale( covariance_property_->getOrientationScale() );
-
-  bool use_rotating_frame = ( covariance_property_->getOrientationFrameOptionInt() == CovarianceProperty::Rotating );
-  covariance_->setRotatingFrame( use_rotating_frame );
 
   context_->queueRender();
 }
@@ -321,36 +296,6 @@ void PoseWithCovarianceDisplay::updateShapeVisibility()
   }
 }
 
-void PoseWithCovarianceDisplay::updateCovarianceChoice()
-{
-  updateCovarianceVisibility();
-  context_->queueRender();
-}
-
-
-void PoseWithCovarianceDisplay::updateCovarianceVisibility()
-{
-  if( !covariance_valid_ )
-  {
-    covariance_->setVisible( false );
-  }
-  else
-  {
-    bool show_covariance = covariance_property_->getBool();
-    if( !show_covariance )
-    {
-      covariance_->setVisible( false );
-    }
-    else
-    {
-      bool show_position_covariance = covariance_property_->getPositionBool();
-      covariance_->setPositionVisible( show_position_covariance );
-      bool show_orientation_covariance = covariance_property_->getOrientationBool();
-      covariance_->setOrientationVisible( show_orientation_covariance );
-    }
-  }
-}
-
 void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& message )
 {
   if( !validateFloats( message->pose.pose ) || !validateFloats( message->pose.covariance ))
@@ -380,7 +325,6 @@ void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCov
   pose_valid_ = true;
   covariance_valid_ = true;
   updateShapeVisibility();
-  updateCovarianceVisibility();
 
   axes_->setPosition( position );
   axes_->setOrientation( orientation );

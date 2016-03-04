@@ -52,13 +52,10 @@ protected:
 
 private Q_SLOTS:
   void updateShapeVisibility();
-  void updateCovarianceVisibility();
   void updateColorAndAlpha();
   void updateShapeChoice();
   void updateAxisGeometry();
   void updateArrowGeometry();
-  void updateCovarianceChoice();
-  void updateCovarianceColorAndAlphaAndScale();
 
 private:
   void clear();
@@ -67,7 +64,7 @@ private:
 
   rviz::Arrow* arrow_;
   rviz::Axes* axes_;
-  CovarianceVisual* covariance_;
+  boost::shared_ptr<CovarianceVisual> covariance_;
   bool pose_valid_;
   bool covariance_valid_;
   PoseWithCovarianceDisplaySelectionHandlerPtr coll_handler_;

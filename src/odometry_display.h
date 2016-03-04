@@ -63,9 +63,6 @@ private Q_SLOTS:
   void updateColorAndAlpha();
   void updateArrowsGeometry();
   void updateAxisGeometry();
-  void updateCovarianceChoice();
-  void updateCovarianceVisibility();
-  void updateCovarianceColorAndAlphaAndScale();
 
 private:
   void updateGeometry( rviz::Arrow* arrow );
@@ -76,7 +73,8 @@ private:
 
   typedef std::deque<rviz::Arrow*> D_Arrow;
   typedef std::deque<rviz::Axes*> D_Axes;
-  typedef std::deque<CovarianceVisual*> D_Covariance;
+  typedef boost::shared_ptr<CovarianceVisual> CovarianceVisualPtr;
+  typedef std::deque<CovarianceVisualPtr> D_Covariance;
 
   D_Arrow arrows_;
   D_Axes axes_;

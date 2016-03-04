@@ -74,10 +74,8 @@ OdometryDisplay::OdometryDisplay()
                                              shape_property_, SLOT( updateAxisGeometry() ), this);
 
   covariance_property_ = new CovarianceProperty( "Covariance", true, "Whether or not the covariances of the messages should be shown.",
-                                             this, SLOT( updateCovarianceChoice() ));
+                                             this, SLOT( queueRender() ));
  
-  connect(covariance_property_, SIGNAL( childrenChanged() ), this, SLOT( updateCovarianceColorAndAlphaAndScale() ));
-
 }
 
 OdometryDisplay::~OdometryDisplay()
@@ -98,7 +96,6 @@ void OdometryDisplay::onEnable()
 {
   MFDClass::onEnable();
   updateShapeVisibility();
-  updateCovarianceVisibility();
 }
 
 void OdometryDisplay::clear()
@@ -111,13 +108,9 @@ void OdometryDisplay::clear()
   }
   arrows_.clear();
 
-  D_Covariance::iterator it_cov = covariances_.begin();
-  D_Covariance::iterator end_cov = covariances_.end();
-  for ( ; it_cov != end_cov; ++it_cov )
-  {
-    delete *it_cov;
-  }
+  // covariances are stored in shared_ptr
   covariances_.clear();
+  covariance_property_->clearVisual();
 
   D_Axes::iterator it_axes = axes_.begin();
   D_Axes::iterator end_axes = axes_.end();
@@ -202,9 +195,6 @@ void OdometryDisplay::updateShapeChoice()
   axes_radius_property_->setHidden( use_arrow );
 
   updateShapeVisibility();
-  // covariances are children of axis, thus we need to update their 
-  // visibilities as well in case their parents turns invisible
-  updateCovarianceVisibility();
 
   context_->queueRender();
 }
@@ -226,51 +216,6 @@ void OdometryDisplay::updateShapeVisibility()
   {
     (*it_axes)->getSceneNode()->setVisible( !use_arrow );
   }
-}
-
-void OdometryDisplay::updateCovarianceChoice()
-{
-  updateCovarianceVisibility();
-  context_->queueRender();
-}
-
-void OdometryDisplay::updateCovarianceVisibility()
-{
-  bool show_covariance = covariance_property_->getBool();
-
-  D_Covariance::iterator it_cov = covariances_.begin();
-  D_Covariance::iterator end_cov = covariances_.end();
-  for ( ; it_cov != end_cov; ++it_cov )
-  {
-    CovarianceVisual* cov = *it_cov;
-    cov->setVisible( show_covariance );
-  }
-}
-
-void OdometryDisplay::updateCovarianceColorAndAlphaAndScale()
-{
-  QColor pos_color = covariance_property_->getPositionColor();
-  float pos_alpha = covariance_property_->getPositionAlpha();
-  float pos_scale = covariance_property_->getPositionScale();
-
-  QColor ori_color = covariance_property_->getOrientationColor();
-  float ori_alpha = covariance_property_->getOrientationAlpha();
-  float ori_scale = covariance_property_->getOrientationScale();
-
-  D_Covariance::iterator it_cov = covariances_.begin();
-  D_Covariance::iterator end_cov = covariances_.end();
-  for ( ; it_cov != end_cov; ++it_cov )
-  {
-    CovarianceVisual* cov = *it_cov;
-
-    cov->setPositionColor( pos_color.redF(), pos_color.greenF(), pos_color.blueF(), pos_alpha );
-    cov->setPositionScale( pos_scale );
-
-    cov->setOrientationColor( ori_color.redF(), ori_color.greenF(), ori_color.blueF(), ori_alpha );
-    cov->setOrientationScale( ori_scale );
-  }
-
-  context_->queueRender();
 }
 
 bool validateFloats(const nav_msgs::Odometry& msg)
@@ -335,7 +280,8 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
                             head_length_property_->getFloat(),
                             head_radius_property_->getFloat() );
   // The axis will be the parent of the covariance
-  CovarianceVisual* cov = new CovarianceVisual( scene_manager_, scene_node_ );
+  CovarianceVisualPtr cov = boost::make_shared<CovarianceVisual>(scene_manager_, scene_node_ );
+  covariance_property_->pushBackVisual( cov );
 
   // Position the axes
   axes->setPosition( position );
@@ -354,18 +300,6 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   float alpha = alpha_property_->getFloat();
   arrow->setColor( color.redF(), color.greenF(), color.blueF(), alpha);
 
-  // Set up covariance color and scales
-  color = covariance_property_->getPositionColor();
-  alpha = covariance_property_->getPositionAlpha();
-  cov->setPositionColor(color.redF(), color.greenF(), color.blueF(), covariance_property_->getPositionAlpha());
-
-  color = covariance_property_->getOrientationColor();
-  alpha = covariance_property_->getOrientationAlpha();
-  cov->setOrientationColor(color.redF(), color.greenF(), color.blueF(), alpha);
-
-  cov->setPositionScale( covariance_property_->getPositionScale() );
-  cov->setOrientationScale( covariance_property_->getOrientationScale() );
-
   // Set up the covariance based on the message
   cov->setCovariance(message->pose);
 
@@ -373,7 +307,7 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   bool use_arrow = (shape_property_->getOptionInt() == ArrowShape);
   arrow->getSceneNode()->setVisible( use_arrow );
   axes->getSceneNode()->setVisible( !use_arrow );
-  cov->setVisible( covariance_property_->getBool() );
+  // cov->setVisible( covariance_property_->getBool() );
 
   // store everything
   axes_.push_back( axes );
@@ -394,16 +328,18 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
       delete arrows_.front();
       arrows_.pop_front();
 
-      delete covariances_.front();
+      // covariance visuals are stored into shared_ptr
       covariances_.pop_front();
+      covariance_property_->popFrontVisual();
 
       delete axes_.front();
       axes_.pop_front();
     }
   }
 
-  assert(arrows_.size() == covariances_.size());
-  assert(covariances_.size() == axes_.size());
+  assert(arrows_.size() == axes_.size());
+  assert(axes_.size() == covariances_.size());
+  assert(covariances_.size() == covariance_property_->sizeVisual());
 
 }
 

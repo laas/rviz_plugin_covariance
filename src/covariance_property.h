@@ -18,11 +18,15 @@ class EnumProperty;
 namespace rviz_plugin_covariance
 {
 
+class CovarianceVisual;
+
 /** @brief Property specialized to provide getter for booleans. */
 class CovarianceProperty: public rviz::BoolProperty
 {
 Q_OBJECT
 public:
+  typedef boost::shared_ptr<CovarianceVisual> CovarianceVisualPtr;
+
   enum Frame
   {
     Rotating,
@@ -38,24 +42,25 @@ public:
 
   virtual ~CovarianceProperty();
 
-  Ogre::ColourValue getPositionOgreColor();
-  QColor getPositionColor() const;
-  float getPositionAlpha();
-  float getPositionScale();
-  virtual bool getPositionBool() const;
+  // Methods to manage the deque of Covariance Visuals
+  void pushBackVisual( const CovarianceVisualPtr& visual );
+  void popFrontVisual();
+  void clearVisual();
+  size_t sizeVisual();
 
-  Ogre::ColourValue getOrientationOgreColor();
-  QColor getOrientationColor() const;
-  float getOrientationAlpha();
-  float getOrientationScale();
-  virtual bool getOrientationBool() const;
-
-  virtual int getOrientationFrameOptionInt() const;
-
-Q_SIGNALS:
-  bool childrenChanged();
+private Q_SLOTS:
+  void updateColorAndAlphaAndScale();
+  void updateOrientationFrame();
+  void updateVisibility();
 
 private:
+  void updateColorAndAlphaAndScale( const CovarianceVisualPtr& visual );
+  void updateOrientationFrame( const CovarianceVisualPtr& visual );
+  void updateVisibility( const CovarianceVisualPtr& visual );
+
+  typedef std::deque<CovarianceVisualPtr> D_Covariance;
+  D_Covariance covariances_;
+
   rviz::BoolProperty*  position_property_;
   rviz::ColorProperty* position_color_property_;
   rviz::FloatProperty* position_alpha_property_;

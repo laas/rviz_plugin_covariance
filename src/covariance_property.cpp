@@ -28,6 +28,7 @@
  */
 
 #include "covariance_property.h"
+#include "covariance_visual.h"
 
 #include <rviz/properties/color_property.h>
 #include <rviz/properties/float_property.h>
@@ -46,51 +47,64 @@ CovarianceProperty::CovarianceProperty( const QString& name,
                             Property* parent,
                             const char *changed_slot,
                             QObject* receiver )
-  : BoolProperty( name, default_value, description, parent, changed_slot, receiver )
+  // NOTE: changed_slot and receiver aren't passed to BoolProperty here, but initialized at the end of this constructor
+  : BoolProperty( name, default_value, description, parent )
 {
 
   position_property_ = new BoolProperty( "Position", true,
                                        "Whether or not to show the position part of covariances",
-                                       this, SIGNAL( changed() ));
+                                       this, SLOT( updateVisibility() ));
   position_property_->setDisableChildrenIfFalse( true );
 
   position_color_property_ = new ColorProperty( "Color", QColor( 204, 51, 204 ),
                                              "Color to draw the covariance ellipse.",
-                                             position_property_, SIGNAL( childrenChanged() ), this );
+                                             position_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   
   position_alpha_property_ = new FloatProperty( "Alpha", 0.3f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
-                                             position_property_, SIGNAL( childrenChanged() ), this );
+                                             position_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   position_alpha_property_->setMin( 0 );
   position_alpha_property_->setMax( 1 );
   
   position_scale_property_ = new FloatProperty( "Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
-                                             position_property_, SIGNAL( childrenChanged() ), this );
+                                             position_property_, SLOT( updateColorAndAlphaAndScale() ), this );
 
   orientation_property_ = new BoolProperty( "Orientation", true,
                                           "Whether or not to show the orientation part of covariances",
-                                          this, SIGNAL( changed() ));
+                                          this, SLOT( updateVisibility() ));
   orientation_property_->setDisableChildrenIfFalse( true );
 
   orientation_frame_property_ = new EnumProperty( "Frame", "Rotating", "The frame used to display the orientation covariance.",
-                                      orientation_property_, SIGNAL( childrenChanged()), this );
+                                      orientation_property_, SLOT( updateOrientationFrame() ), this );
   orientation_frame_property_->addOption( "Rotating", Rotating );
   orientation_frame_property_->addOption( "Static", Static );
 
   orientation_color_property_ = new ColorProperty( "Color", QColor( 255, 255, 127 ),
                                              "Color to draw the covariance ellipse.",
-                                             orientation_property_, SIGNAL( childrenChanged() ), this );
+                                             orientation_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   
   orientation_alpha_property_ = new FloatProperty( "Alpha", 0.5f,
                                              "0 is fully transparent, 1.0 is fully opaque.",
-                                             orientation_property_, SIGNAL( childrenChanged() ), this );
+                                             orientation_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   orientation_alpha_property_->setMin( 0 );
   orientation_alpha_property_->setMax( 1 );
   
   orientation_scale_property_ = new FloatProperty( "Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
-                                             orientation_property_, SIGNAL( childrenChanged() ), this );
+                                             orientation_property_, SLOT( updateColorAndAlphaAndScale() ), this );
+
+  connect(this, SIGNAL( changed() ), this, SLOT( updateVisibility() ));
+
+  // Connect changed() signal here instead of doing it through the initialization of BoolProperty().
+  // We do this here to make changed_slot be called _after_ updateVisibility()
+  if(changed_slot && (parent || receiver))
+  {
+    if(receiver)
+      connect(this, SIGNAL( changed() ), receiver, changed_slot);
+    else
+      connect(this, SIGNAL( changed() ), parent, changed_slot);
+  }
 
   setDisableChildrenIfFalse( true );
 }
@@ -99,60 +113,89 @@ CovarianceProperty::~CovarianceProperty()
 {
 }
 
-QColor CovarianceProperty::getPositionColor() const
-{ 
-  return position_color_property_->getColor();
-}
-
-Ogre::ColourValue CovarianceProperty::getPositionOgreColor()
+void CovarianceProperty::updateColorAndAlphaAndScale()
 {
-  return position_color_property_->getOgreColor();
+  D_Covariance::iterator it_cov = covariances_.begin();
+  D_Covariance::iterator end_cov = covariances_.end();
+  for ( ; it_cov != end_cov; ++it_cov )
+    updateColorAndAlphaAndScale(*it_cov);
 }
 
-float CovarianceProperty::getPositionAlpha()
+void CovarianceProperty::updateColorAndAlphaAndScale(const CovarianceVisualPtr& visual)
 {
-  position_alpha_property_->getFloat();
+  QColor pos_color = position_color_property_->getColor();
+  float pos_alpha = position_alpha_property_->getFloat();
+  float pos_scale = position_scale_property_->getFloat();
+
+  QColor ori_color = orientation_color_property_->getColor();
+  float ori_alpha = orientation_alpha_property_->getFloat();
+  float ori_scale = orientation_scale_property_->getFloat();
+
+  visual->setPositionColor( pos_color.redF(), pos_color.greenF(), pos_color.blueF(), pos_alpha );
+  visual->setPositionScale( pos_scale );
+  visual->setOrientationColor( ori_color.redF(), ori_color.greenF(), ori_color.blueF(), ori_alpha );
+  visual->setOrientationScale( ori_scale );
 }
 
-float CovarianceProperty::getPositionScale()
+void CovarianceProperty::updateVisibility()
 {
-  position_scale_property_->getFloat();
+  D_Covariance::iterator it_cov = covariances_.begin();
+  D_Covariance::iterator end_cov = covariances_.end();
+  for ( ; it_cov != end_cov; ++it_cov )
+    updateVisibility(*it_cov);
 }
 
-QColor CovarianceProperty::getOrientationColor() const
-{ 
-  return orientation_color_property_->getColor();
-}
-
-Ogre::ColourValue CovarianceProperty::getOrientationOgreColor()
+void CovarianceProperty::updateVisibility(const CovarianceVisualPtr& visual)
 {
-  return orientation_color_property_->getOgreColor();
+  bool show_covariance = getBool();
+  if( !show_covariance )
+  {
+    visual->setVisible( false );
+  }
+  else
+  {
+    bool show_position_covariance = position_property_->getBool();;
+    bool show_orientation_covariance = orientation_property_->getBool();
+    visual->setPositionVisible( show_position_covariance );
+    visual->setOrientationVisible( show_orientation_covariance );
+  }
 }
 
-float CovarianceProperty::getOrientationAlpha()
+void CovarianceProperty::updateOrientationFrame()
 {
-  orientation_alpha_property_->getFloat();
+  D_Covariance::iterator it_cov = covariances_.begin();
+  D_Covariance::iterator end_cov = covariances_.end();
+  for ( ; it_cov != end_cov; ++it_cov )
+    updateOrientationFrame(*it_cov);
 }
 
-float CovarianceProperty::getOrientationScale()
+void CovarianceProperty::updateOrientationFrame(const CovarianceVisualPtr& visual)
 {
-  orientation_scale_property_->getFloat();
+  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Rotating );
+  visual->setRotatingFrame( use_rotating_frame );
 }
 
-bool CovarianceProperty::getPositionBool() const
+void CovarianceProperty::pushBackVisual( const CovarianceVisualPtr& visual )
 {
-  return position_property_->getBool();
+  updateVisibility(visual);
+  updateOrientationFrame(visual);
+  updateColorAndAlphaAndScale(visual);
+  covariances_.push_back(visual);
 }
 
-bool CovarianceProperty::getOrientationBool() const
+void CovarianceProperty::popFrontVisual()
 {
-  return orientation_property_->getBool();
+  covariances_.pop_front();
 }
 
-int CovarianceProperty::getOrientationFrameOptionInt() const
+void CovarianceProperty::clearVisual()
 {
-  return orientation_frame_property_->getOptionInt();
+  covariances_.clear();
 }
 
+size_t CovarianceProperty::sizeVisual()
+{
+  return covariances_.size();
+}
 
 } // end namespace rviz_plugin_covariance
