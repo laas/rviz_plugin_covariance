@@ -92,6 +92,7 @@ public:
    */
   virtual void setOrientationColor( float r, float g, float b, float a );
   void setOrientationColor(const Ogre::ColourValue& color);
+  void setOrientationColorToRGB(float a);
 
   /** @brief Set the covariance.
    *

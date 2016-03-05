@@ -332,11 +332,17 @@ void CovarianceVisual::setPositionColor(const Ogre::ColourValue& c)
 
 void CovarianceVisual::setOrientationColor(const Ogre::ColourValue& c)
 {
-  // FIXME: Is it better fix to rgb color? Or give the option to the user
   for(int i = 0; i < 3; i++)
   {
     orientation_shape_[i]->setColor(c);
   }
+}
+
+void CovarianceVisual::setOrientationColorToRGB( float a )
+{
+  orientation_shape_[kRoll]->setColor(Ogre::ColourValue(1.0, 0.0, 0.0, a ));
+  orientation_shape_[kPitch]->setColor(Ogre::ColourValue(0.0, 1.0, 0.0, a ));
+  orientation_shape_[kYaw]->setColor(Ogre::ColourValue(0.0, 0.0, 1.0, a ));
 }
 
 void CovarianceVisual::setPositionColor( float r, float g, float b, float a )

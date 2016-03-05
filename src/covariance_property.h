@@ -35,8 +35,14 @@ public:
 
   enum Frame
   {
-    Rotating,
-    Static,
+    Local,
+    Fixed,
+  };
+
+  enum ColorStyle
+  {
+    Unique,
+    RGB,
   };
 
   CovarianceProperty( const QString& name = "Covariance",
@@ -63,6 +69,7 @@ public Q_SLOTS:
 private Q_SLOTS:
   void updateColorAndAlphaAndScale();
   void updateOrientationFrame();
+  void updateColorStyleChoice();
 
 private:
   void updateColorAndAlphaAndScale( const CovarianceVisualPtr& visual );
@@ -78,6 +85,7 @@ private:
   rviz::FloatProperty* position_scale_property_;
   rviz::BoolProperty*  orientation_property_;
   rviz::EnumProperty*  orientation_frame_property_;
+  rviz::EnumProperty*  orientation_colorstyle_property_;
   rviz::ColorProperty* orientation_color_property_;
   rviz::FloatProperty* orientation_alpha_property_;
   rviz::FloatProperty* orientation_scale_property_;

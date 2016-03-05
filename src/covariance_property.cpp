@@ -62,7 +62,7 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   position_property_->setDisableChildrenIfFalse( true );
 
   position_color_property_ = new ColorProperty( "Color", QColor( 204, 51, 204 ),
-                                             "Color to draw the covariance ellipse.",
+                                             "Color to draw the position covariance ellipse.",
                                              position_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   
   position_alpha_property_ = new FloatProperty( "Alpha", 0.3f,
@@ -74,16 +74,22 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   position_scale_property_ = new FloatProperty( "Scale", 1.0f,
                                              "Scale factor to be applied to covariance ellipse",
                                              position_property_, SLOT( updateColorAndAlphaAndScale() ), this );
+  position_scale_property_->setMin( 0 );
 
   orientation_property_ = new BoolProperty( "Orientation", true,
                                           "Whether or not to show the orientation part of covariances",
                                           this, SLOT( updateVisibility() ));
   orientation_property_->setDisableChildrenIfFalse( true );
 
-  orientation_frame_property_ = new EnumProperty( "Frame", "Rotating", "The frame used to display the orientation covariance.",
+  orientation_frame_property_ = new EnumProperty( "Frame", "Local", "The frame used to display the orientation covariance.",
                                       orientation_property_, SLOT( updateOrientationFrame() ), this );
-  orientation_frame_property_->addOption( "Rotating", Rotating );
-  orientation_frame_property_->addOption( "Static", Static );
+  orientation_frame_property_->addOption( "Local", Local );
+  orientation_frame_property_->addOption( "Fixed", Fixed );
+
+  orientation_colorstyle_property_ = new EnumProperty( "Color Style", "Unique", "Style to color the orientation covariance",
+                                      orientation_property_, SLOT( updateColorStyleChoice() ), this );
+  orientation_colorstyle_property_->addOption( "Unique", Unique );
+  orientation_colorstyle_property_->addOption( "RGB", RGB );
 
   orientation_color_property_ = new ColorProperty( "Color", QColor( 255, 255, 127 ),
                                              "Color to draw the covariance ellipse.",
@@ -95,9 +101,10 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   orientation_alpha_property_->setMin( 0 );
   orientation_alpha_property_->setMax( 1 );
   
-  orientation_scale_property_ = new FloatProperty( "Scale", 1.0f,
-                                             "Scale factor to be applied to covariance ellipse",
+  orientation_scale_property_ = new FloatProperty( "Offset", 1.0f,
+                                             "Distance where to position orientation covariance",
                                              orientation_property_, SLOT( updateColorAndAlphaAndScale() ), this );
+  orientation_scale_property_->setMin( 0 );
 
   connect(this, SIGNAL( changed() ), this, SLOT( updateVisibility() ));
 
@@ -118,6 +125,13 @@ CovarianceProperty::~CovarianceProperty()
 {
 }
 
+void CovarianceProperty::updateColorStyleChoice()
+{
+  bool use_unique_color = ( orientation_colorstyle_property_->getOptionInt() == Unique );
+  orientation_color_property_->setHidden( !use_unique_color );
+  updateColorAndAlphaAndScale();
+}
+
 void CovarianceProperty::updateColorAndAlphaAndScale()
 {
   D_Covariance::iterator it_cov = covariances_.begin();
@@ -128,17 +142,23 @@ void CovarianceProperty::updateColorAndAlphaAndScale()
 
 void CovarianceProperty::updateColorAndAlphaAndScale(const CovarianceVisualPtr& visual)
 {
-  QColor pos_color = position_color_property_->getColor();
   float pos_alpha = position_alpha_property_->getFloat();
   float pos_scale = position_scale_property_->getFloat();
-
-  QColor ori_color = orientation_color_property_->getColor();
-  float ori_alpha = orientation_alpha_property_->getFloat();
-  float ori_scale = orientation_scale_property_->getFloat();
-
+  QColor pos_color = position_color_property_->getColor();
   visual->setPositionColor( pos_color.redF(), pos_color.greenF(), pos_color.blueF(), pos_alpha );
   visual->setPositionScale( pos_scale );
-  visual->setOrientationColor( ori_color.redF(), ori_color.greenF(), ori_color.blueF(), ori_alpha );
+
+  float ori_alpha = orientation_alpha_property_->getFloat();
+  float ori_scale = orientation_scale_property_->getFloat();
+  if(orientation_colorstyle_property_->getOptionInt() == Unique)
+  {
+    QColor ori_color = orientation_color_property_->getColor();
+    visual->setOrientationColor( ori_color.redF(), ori_color.greenF(), ori_color.blueF(), ori_alpha );
+  }
+  else
+  {
+    visual->setOrientationColorToRGB( ori_alpha );
+  }
   visual->setOrientationScale( ori_scale );
 }
 
@@ -176,7 +196,7 @@ void CovarianceProperty::updateOrientationFrame()
 
 void CovarianceProperty::updateOrientationFrame(const CovarianceVisualPtr& visual)
 {
-  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Rotating );
+  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Local );
   visual->setRotatingFrame( use_rotating_frame );
 }
 
@@ -197,7 +217,7 @@ size_t CovarianceProperty::sizeVisual()
 
 CovarianceProperty::CovarianceVisualPtr CovarianceProperty::createAndPushBackVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node)
 {
-  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Rotating );
+  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Local );
   CovarianceVisualPtr visual(new CovarianceVisual(scene_manager, parent_node, use_rotating_frame) );
   updateVisibility(visual);
   updateOrientationFrame(visual);
