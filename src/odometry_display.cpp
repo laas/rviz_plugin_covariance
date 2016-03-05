@@ -108,8 +108,7 @@ void OdometryDisplay::clear()
   }
   arrows_.clear();
 
-  // covariances are stored in shared_ptr
-  covariances_.clear();
+  // covariances are stored in covariance_property_
   covariance_property_->clearVisual();
 
   D_Axes::iterator it_axes = axes_.begin();
@@ -230,7 +229,9 @@ bool validateFloats(const nav_msgs::Odometry& msg)
 
 void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& message )
 {
-   if( !validateFloats( *message ))
+  typedef CovarianceProperty::CovarianceVisualPtr CovarianceVisualPtr;
+
+  if( !validateFloats( *message ))
   {
     setStatus( StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)" );
     return;
@@ -243,6 +244,7 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
     Ogre::Quaternion last_orientation(last_used_message_->pose.pose.orientation.w, last_used_message_->pose.pose.orientation.x, last_used_message_->pose.pose.orientation.y, last_used_message_->pose.pose.orientation.z);
     Ogre::Quaternion current_orientation(message->pose.pose.orientation.w, message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z);
 
+    // FIXME: the angle tolerance test does not work at the angular discontinuity
     if( (last_position - current_position).length() < position_tolerance_property_->getFloat() &&
         (last_orientation - current_orientation).normalise() < angle_tolerance_property_->getFloat() )
     {
@@ -250,21 +252,13 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
     }
   }
 
+
   Ogre::Vector3 position;
   Ogre::Quaternion orientation;
   if( !context_->getFrameManager()->transform( message->header, message->pose.pose, position, orientation ))
   {
     ROS_ERROR( "Error transforming odometry '%s' from frame '%s' to frame '%s'",
                qPrintable( getName() ), message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
-    return;
-  }
-
-  Ogre::Vector3 frame_position;
-  Ogre::Quaternion frame_orientation; 
-  if( !context_->getFrameManager()->getTransform( message->header, frame_position, frame_orientation ))
-  {
-    ROS_ERROR( "Error recovering the transform from frame '%s' to frame '%s'",
-               message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
     return;
   }
 
@@ -279,9 +273,7 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
                             shaft_radius_property_->getFloat(),
                             head_length_property_->getFloat(),
                             head_radius_property_->getFloat() );
-  // The axis will be the parent of the covariance
-  CovarianceVisualPtr cov = boost::make_shared<CovarianceVisual>(scene_manager_, scene_node_ );
-  covariance_property_->pushBackVisual( cov );
+  CovarianceVisualPtr cov = covariance_property_->createAndPushBackVisual(scene_manager_, scene_node_ );
 
   // Position the axes
   axes->setPosition( position );
@@ -292,8 +284,8 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   arrow->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ));
 
   // Position the frame where the covariance is attached covariance
-  cov->setFramePosition( frame_position );
-  cov->setFrameOrientation( frame_orientation );
+  cov->setPosition( position );
+  cov->setOrientation( orientation );
 
   // Set up arrow color
   QColor color = color_property_->getColor();
@@ -312,7 +304,6 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   // store everything
   axes_.push_back( axes );
   arrows_.push_back( arrow );
-  covariances_.push_back( cov );
 
   last_used_message_ = message;
   context_->queueRender();
@@ -328,8 +319,7 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
       delete arrows_.front();
       arrows_.pop_front();
 
-      // covariance visuals are stored into shared_ptr
-      covariances_.pop_front();
+      // covariance visuals are stored into covariance_property_
       covariance_property_->popFrontVisual();
 
       delete axes_.front();
@@ -338,8 +328,7 @@ void OdometryDisplay::update( float wall_dt, float ros_dt )
   }
 
   assert(arrows_.size() == axes_.size());
-  assert(axes_.size() == covariances_.size());
-  assert(covariances_.size() == covariance_property_->sizeVisual());
+  assert(axes_.size() == covariance_property_->sizeVisual());
 
 }
 

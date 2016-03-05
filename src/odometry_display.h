@@ -27,7 +27,6 @@ class EnumProperty;
 namespace rviz_plugin_covariance
 {
 
-class CovarianceVisual;
 class CovarianceProperty;
 
 /**
@@ -73,12 +72,9 @@ private:
 
   typedef std::deque<rviz::Arrow*> D_Arrow;
   typedef std::deque<rviz::Axes*> D_Axes;
-  typedef boost::shared_ptr<CovarianceVisual> CovarianceVisualPtr;
-  typedef std::deque<CovarianceVisualPtr> D_Covariance;
 
   D_Arrow arrows_;
   D_Axes axes_;
-  D_Covariance covariances_;
 
   nav_msgs::Odometry::ConstPtr last_used_message_;
 
