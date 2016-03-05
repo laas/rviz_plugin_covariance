@@ -15,6 +15,12 @@ class FloatProperty;
 class EnumProperty;
 }
 
+namespace Ogre
+{
+  class SceneManager;
+  class SceneNode;
+}
+
 namespace rviz_plugin_covariance
 {
 
@@ -42,16 +48,21 @@ public:
 
   virtual ~CovarianceProperty();
 
+  bool getPositionBool();
+  bool getOrientationBool();
+
   // Methods to manage the deque of Covariance Visuals
-  void pushBackVisual( const CovarianceVisualPtr& visual );
+  CovarianceVisualPtr createAndPushBackVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node);
   void popFrontVisual();
   void clearVisual();
   size_t sizeVisual();
 
+public Q_SLOTS:
+  void updateVisibility();
+
 private Q_SLOTS:
   void updateColorAndAlphaAndScale();
   void updateOrientationFrame();
-  void updateVisibility();
 
 private:
   void updateColorAndAlphaAndScale( const CovarianceVisualPtr& visual );

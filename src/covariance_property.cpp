@@ -36,6 +36,11 @@
 
 #include <QColor>
 
+#include <OgreSceneManager.h>
+#include <OgreSceneNode.h>
+
+#include <boost/make_shared.hpp>
+
 using namespace rviz;
 
 namespace rviz_plugin_covariance
@@ -150,7 +155,7 @@ void CovarianceProperty::updateVisibility(const CovarianceVisualPtr& visual)
   bool show_covariance = getBool();
   if( !show_covariance )
   {
-    visual->setVisible( false );
+    visual->getSceneNode()->setVisible( false );
   }
   else
   {
@@ -175,14 +180,6 @@ void CovarianceProperty::updateOrientationFrame(const CovarianceVisualPtr& visua
   visual->setRotatingFrame( use_rotating_frame );
 }
 
-void CovarianceProperty::pushBackVisual( const CovarianceVisualPtr& visual )
-{
-  updateVisibility(visual);
-  updateOrientationFrame(visual);
-  updateColorAndAlphaAndScale(visual);
-  covariances_.push_back(visual);
-}
-
 void CovarianceProperty::popFrontVisual()
 {
   covariances_.pop_front();
@@ -197,5 +194,28 @@ size_t CovarianceProperty::sizeVisual()
 {
   return covariances_.size();
 }
+
+CovarianceProperty::CovarianceVisualPtr CovarianceProperty::createAndPushBackVisual(Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node)
+{
+  bool use_rotating_frame = ( orientation_frame_property_->getOptionInt() == Rotating );
+  CovarianceVisualPtr visual(new CovarianceVisual(scene_manager, parent_node, use_rotating_frame) );
+  updateVisibility(visual);
+  updateOrientationFrame(visual);
+  updateColorAndAlphaAndScale(visual);
+  covariances_.push_back(visual);
+  return visual;
+}
+
+bool CovarianceProperty::getPositionBool()
+{
+  return position_property_->getBool();
+}
+
+bool CovarianceProperty::getOrientationBool()
+{
+  return orientation_property_->getBool();
+}
+
+
 
 } // end namespace rviz_plugin_covariance
