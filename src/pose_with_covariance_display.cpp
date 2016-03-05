@@ -100,16 +100,19 @@ public:
         aabbs.push_back( display_->axes_->getYShape()->getEntity()->getWorldBoundingBox() );
         aabbs.push_back( display_->axes_->getZShape()->getEntity()->getWorldBoundingBox() );
       }
-    }
 
-    if( display_->covariance_valid_ )
-    {
       if( display_->covariance_property_->getBool() )
       {
-        // NOTE: The bounding boxes looks correct when rviz is fixed in the pose, but looks weird when fixed on other frames.
-        //       Not sure if it's wrong or it's ok. It appears to happen with topics with low publishing rate.
-        aabbs.push_back( display_->covariance_->getPositionShape()->getEntity()->getWorldBoundingBox() );
-        aabbs.push_back( display_->covariance_->getOrientationShape()->getEntity()->getWorldBoundingBox() );
+        if(display_->covariance_property_->getPositionBool())
+        {
+          aabbs.push_back( display_->covariance_->getPositionShape()->getEntity()->getWorldBoundingBox() );
+        }
+        if(display_->covariance_property_->getOrientationBool())
+        {
+          aabbs.push_back( display_->covariance_->getOrientationShape(CovarianceVisual::kRoll)->getEntity()->getWorldBoundingBox() );
+          aabbs.push_back( display_->covariance_->getOrientationShape(CovarianceVisual::kPitch)->getEntity()->getWorldBoundingBox() );
+          aabbs.push_back( display_->covariance_->getOrientationShape(CovarianceVisual::kYaw)->getEntity()->getWorldBoundingBox() );
+        }
       }
     }
   }
@@ -151,8 +154,7 @@ private:
 };
 
 PoseWithCovarianceDisplay::PoseWithCovarianceDisplay()
-  : pose_valid_( false ),
-    covariance_valid_( false )
+  : pose_valid_( false )
 {
   shape_property_ = new EnumProperty( "Shape", "Arrow", "Shape to display the pose as.",
                                       this, SLOT( updateShapeChoice() ));
@@ -208,8 +210,7 @@ void PoseWithCovarianceDisplay::onInitialize()
                           axes_length_property_->getFloat(),
                           axes_radius_property_->getFloat() );
 
-  covariance_ = boost::make_shared<CovarianceVisual>(scene_manager_, scene_node_);
-  covariance_property_->pushBackVisual( covariance_ );
+  covariance_ = covariance_property_->createAndPushBackVisual(scene_manager_, scene_node_ );
 
   updateShapeChoice();
   updateColorAndAlpha();
@@ -217,8 +218,7 @@ void PoseWithCovarianceDisplay::onInitialize()
   coll_handler_.reset( new PoseWithCovarianceDisplaySelectionHandler( this, context_ ));
   coll_handler_->addTrackedObjects( arrow_->getSceneNode() );
   coll_handler_->addTrackedObjects( axes_->getSceneNode() );
-  coll_handler_->addTrackedObjects( covariance_->getPositionSceneNode() );
-  coll_handler_->addTrackedObjects( covariance_->getOrientationSceneNode() );
+  coll_handler_->addTrackedObjects( covariance_->getSceneNode() );
 }
 
 PoseWithCovarianceDisplay::~PoseWithCovarianceDisplay()
@@ -287,12 +287,14 @@ void PoseWithCovarianceDisplay::updateShapeVisibility()
   {
     arrow_->getSceneNode()->setVisible( false );
     axes_->getSceneNode()->setVisible( false );
+    covariance_->getSceneNode()->setVisible( false );
   }
   else
   {
     bool use_arrow = (shape_property_->getOptionInt() == Arrow);
     arrow_->getSceneNode()->setVisible( use_arrow );
     axes_->getSceneNode()->setVisible( !use_arrow );
+    covariance_property_->updateVisibility();
   }
 }
 
@@ -313,17 +315,7 @@ void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCov
     return;
   }
 
-  Ogre::Vector3 frame_position;
-  Ogre::Quaternion frame_orientation; 
-  if( !context_->getFrameManager()->getTransform( message->header, frame_position, frame_orientation ))
-  {
-    ROS_ERROR( "Error recovering the transform from frame '%s' to frame '%s'",
-               message->header.frame_id.c_str(), qPrintable( fixed_frame_ ));
-    return;
-  }
-
   pose_valid_ = true;
-  covariance_valid_ = true;
   updateShapeVisibility();
 
   axes_->setPosition( position );
@@ -332,8 +324,8 @@ void PoseWithCovarianceDisplay::processMessage( const geometry_msgs::PoseWithCov
   arrow_->setPosition( position );
   arrow_->setOrientation( orientation * Ogre::Quaternion( Ogre::Degree( -90 ), Ogre::Vector3::UNIT_Y ) );
 
-  covariance_->setFramePosition( frame_position );
-  covariance_->setFrameOrientation( frame_orientation );
+  covariance_->setPosition( position );
+  covariance_->setOrientation( orientation );
   covariance_->setCovariance( message->pose );
 
   coll_handler_->setMessage( message );
@@ -345,7 +337,6 @@ void PoseWithCovarianceDisplay::reset()
 {
   MFDClass::reset();
   pose_valid_ = false;
-  covariance_valid_ = false;
   updateShapeVisibility();
 }
 

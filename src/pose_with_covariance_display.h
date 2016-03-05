@@ -66,7 +66,6 @@ private:
   rviz::Axes* axes_;
   boost::shared_ptr<CovarianceVisual> covariance_;
   bool pose_valid_;
-  bool covariance_valid_;
   PoseWithCovarianceDisplaySelectionHandlerPtr coll_handler_;
 
   rviz::EnumProperty* shape_property_;
