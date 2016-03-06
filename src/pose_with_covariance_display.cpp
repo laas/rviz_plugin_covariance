@@ -218,7 +218,8 @@ void PoseWithCovarianceDisplay::onInitialize()
   coll_handler_.reset( new PoseWithCovarianceDisplaySelectionHandler( this, context_ ));
   coll_handler_->addTrackedObjects( arrow_->getSceneNode() );
   coll_handler_->addTrackedObjects( axes_->getSceneNode() );
-  coll_handler_->addTrackedObjects( covariance_->getSceneNode() );
+  coll_handler_->addTrackedObjects( covariance_->getPositionSceneNode() );
+  coll_handler_->addTrackedObjects( covariance_->getOrientationSceneNode() );
 }
 
 PoseWithCovarianceDisplay::~PoseWithCovarianceDisplay()
@@ -287,7 +288,7 @@ void PoseWithCovarianceDisplay::updateShapeVisibility()
   {
     arrow_->getSceneNode()->setVisible( false );
     axes_->getSceneNode()->setVisible( false );
-    covariance_->getSceneNode()->setVisible( false );
+    covariance_->setVisible( false );
   }
   else
   {
