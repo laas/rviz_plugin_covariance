@@ -8,8 +8,8 @@ from numpy import pi, cos, sin
 
 br = tf.TransformBroadcaster()
 
-topic = 'test_odometry'
-publisher = rospy.Publisher(topic, Odometry, queue_size=5)
+publisher = rospy.Publisher('test_odometry', Odometry, queue_size=5)
+publisher_2D = rospy.Publisher('test_odometry_2D', Odometry, queue_size=5)
 
 rospy.init_node('send_odometry')
 
@@ -17,8 +17,8 @@ y = 0
 angle = 0
 
 roll = 0
-pitch = pi/2
-yaw = 0
+pitch = 0
+yaw = pi/2
 axes = 'sxyz' # 'sxyz' or 'rxyz'
 
 ori_deviation = pi/6.0;
@@ -36,7 +36,7 @@ while not rospy.is_shutdown():
    odo.pose.pose.position.z = 0
 
    ori = odo.pose.pose.orientation
-   ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(roll, pitch + angle, yaw, axes)
+   ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(roll, pitch, yaw + angle, axes)
 
    odo.pose.covariance[0+0*6] = 0.2+(abs(y)/2.5);
    odo.pose.covariance[1+1*6] = 0.2;
@@ -52,6 +52,13 @@ while not rospy.is_shutdown():
       "base_link")
 
    publisher.publish( odo )
+
+   odo.pose.covariance[2+2*6] = 0.0;
+   odo.pose.covariance[3+3*6] = 0.0;
+   odo.pose.covariance[4+4*6] = 0.0;
+
+   publisher_2D.publish( odo )
+
 
    y = y + .02
    if y > 5:
