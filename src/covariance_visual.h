@@ -179,11 +179,11 @@ private:
   Ogre::SceneNode* position_node_;
 
   Ogre::SceneNode* orientation_scale_node_;
-  Ogre::SceneNode* orientation_offset_node_[4];
-  Ogre::SceneNode* orientation_node_[4];
+  Ogre::SceneNode* orientation_offset_node_[kNumOriShapes];
+  Ogre::SceneNode* orientation_node_[kNumOriShapes];
 
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
-  rviz::Shape* orientation_shape_[4];   ///< Cylinders used for the orientation covariance
+  rviz::Shape* orientation_shape_[kNumOriShapes];   ///< Cylinders used for the orientation covariance
 
   bool local_rotation_;
 
