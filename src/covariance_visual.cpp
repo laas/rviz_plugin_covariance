@@ -48,7 +48,7 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
     orientation_offset_node_[i]->setInheritScale( false );
     // Node to be oriented and scaled by the message's covariance. One for each axis.
     orientation_node_[i] = orientation_offset_node_[i]->createChildSceneNode();
-    if(i < kYaw2D)
+    if(i != kYaw2D)
       orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_node_[i]);
     else
       orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_node_[i]);
@@ -89,7 +89,7 @@ CovarianceVisual::~CovarianceVisual()
   delete position_shape_;
   scene_manager_->destroySceneNode( position_node_->getName() );
 
-  for(int i = 0; i < 3; i++)
+  for(int i = 0; i < kNumOriShapes; i++)
   {
     delete orientation_shape_[i];
     scene_manager_->destroySceneNode( orientation_node_[i]->getName() );
@@ -383,15 +383,19 @@ void CovarianceVisual::setOrientationScale( float ori_scale )
   // Scale the orientation scale node to position the shapes along the axis
   orientation_scale_node_->setScale( ori_scale, ori_scale, ori_scale );
   // The scale along the flatten out dimension is always 1.0
-  for(int i = 0; i < 3; i++)
+  for(int i = 0; i < kNumOriShapes; i++)
   {
-    // For the cylinder in 3D case is the y-axis
-    orientation_offset_node_[i]->setScale( ori_scale, 1.0, ori_scale );
+    if(i == kYaw2D)
+    {
+      // To proper flat the cone in the 2D case we flat out along z
+      orientation_offset_node_[i]->setScale( ori_scale, ori_scale, 1.0 );
+    }
+    else
+    {
+      // For the cylinder in 3D case is the y-axis
+      orientation_offset_node_[i]->setScale( ori_scale, 1.0, ori_scale );
+    }
   }
-
-  // To proper flat the cone in the 2D case we flat out along z
-  orientation_offset_node_[kYaw2D]->setScale( ori_scale, ori_scale, 1.0 );
-
 }
 
 void CovarianceVisual::setPositionColor(const Ogre::ColourValue& c)
