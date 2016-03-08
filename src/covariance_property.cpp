@@ -39,8 +39,6 @@
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
 
-#include <boost/make_shared.hpp>
-
 using namespace rviz;
 
 namespace rviz_plugin_covariance
