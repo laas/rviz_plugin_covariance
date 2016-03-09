@@ -43,8 +43,8 @@ while not rospy.is_shutdown():
     ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(r,p,y, axes)
 
     pose_with_cov.pose.covariance[0] = pos_deviation**2.0
-    pose_with_cov.pose.covariance[6+1] = 0.0001
-    pose_with_cov.pose.covariance[12+2] = 0.0001
+    pose_with_cov.pose.covariance[6+1] = 0.001
+    pose_with_cov.pose.covariance[12+2] = 0.001
     pose_with_cov.pose.covariance[18+3] = ori_deviation2**2.0
     pose_with_cov.pose.covariance[24+4] = ori_deviation2**2.0
     pose_with_cov.pose.covariance[30+5] = ori_deviation**2.0
