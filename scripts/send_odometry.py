@@ -4,16 +4,26 @@ import roslib; roslib.load_manifest('rviz')
 from nav_msgs.msg import Odometry
 import rospy
 import tf
-from numpy import pi
+from numpy import pi, cos, sin
 
 br = tf.TransformBroadcaster()
 
 topic = 'test_odometry'
-publisher = rospy.Publisher(topic, Odometry)
+publisher = rospy.Publisher(topic, Odometry, queue_size=5)
 
 rospy.init_node('send_odometry')
 
 y = 0
+angle = 0
+
+roll = 0
+pitch = pi/2
+yaw = 0
+axes = 'sxyz' # 'sxyz' or 'rxyz'
+
+ori_deviation = pi/6.0;
+
+
 while not rospy.is_shutdown():
 
    odo = Odometry()
@@ -26,7 +36,7 @@ while not rospy.is_shutdown():
    odo.pose.pose.position.z = 0
 
    ori = odo.pose.pose.orientation
-   ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(0, pi/2, 0)
+   ori.x, ori.y, ori.z, ori.w = tf.transformations.quaternion_from_euler(roll, pitch + angle, yaw, axes)
 
    odo.pose.covariance[0+0*6] = 0.2+(abs(y)/2.5);
    odo.pose.covariance[1+1*6] = 0.2;
@@ -46,5 +56,9 @@ while not rospy.is_shutdown():
    y = y + .02
    if y > 5:
       y = -5
+
+   angle += .005
+   if angle > 2*pi:
+      angle -= 2*pi
 
    rospy.sleep(0.01)
