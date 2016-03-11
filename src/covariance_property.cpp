@@ -39,8 +39,6 @@
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
 
-#include <boost/make_shared.hpp>
-
 using namespace rviz;
 
 namespace rviz_plugin_covariance
@@ -86,7 +84,7 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   orientation_frame_property_->addOption( "Local", Local );
   orientation_frame_property_->addOption( "Fixed", Fixed );
 
-  orientation_colorstyle_property_ = new EnumProperty( "Color Style", "Unique", "Style to color the orientation covariance",
+  orientation_colorstyle_property_ = new EnumProperty( "Color Style", "Unique", "Style to color the orientation covariance: XYZ with same unique color or following RGB order",
                                       orientation_property_, SLOT( updateColorStyleChoice() ), this );
   orientation_colorstyle_property_->addOption( "Unique", Unique );
   orientation_colorstyle_property_->addOption( "RGB", RGB );
@@ -101,8 +99,8 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   orientation_alpha_property_->setMin( 0 );
   orientation_alpha_property_->setMax( 1 );
   
-  orientation_scale_property_ = new FloatProperty( "Offset", 1.0f,
-                                             "Distance where to position orientation covariance",
+  orientation_scale_property_ = new FloatProperty( "Scale", 1.0f,
+                                             "For 3D poses is the distance where to position orientation covariance. For 2D poses is the size of the triangle representing covariance on yaw",
                                              orientation_property_, SLOT( updateColorAndAlphaAndScale() ), this );
   orientation_scale_property_->setMin( 0 );
 
@@ -175,7 +173,7 @@ void CovarianceProperty::updateVisibility(const CovarianceVisualPtr& visual)
   bool show_covariance = getBool();
   if( !show_covariance )
   {
-    visual->getSceneNode()->setVisible( false );
+    visual->setVisible( false );
   }
   else
   {

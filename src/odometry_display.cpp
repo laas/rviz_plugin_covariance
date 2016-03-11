@@ -252,7 +252,6 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
     }
   }
 
-
   Ogre::Vector3 position;
   Ogre::Quaternion orientation;
   if( !context_->getFrameManager()->transform( message->header, message->pose.pose, position, orientation ))
@@ -299,7 +298,6 @@ void OdometryDisplay::processMessage( const nav_msgs::Odometry::ConstPtr& messag
   bool use_arrow = (shape_property_->getOptionInt() == ArrowShape);
   arrow->getSceneNode()->setVisible( use_arrow );
   axes->getSceneNode()->setVisible( !use_arrow );
-  // cov->setVisible( covariance_property_->getBool() );
 
   // store everything
   axes_.push_back( axes );

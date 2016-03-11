@@ -9,11 +9,12 @@
 
 #include <Eigen/Dense>
 
+#include <OgreColourValue.h>
+
 namespace Ogre
 {
 class SceneManager;
 class SceneNode;
-class ColourValue;
 class Any;
 }
 
@@ -39,11 +40,13 @@ class CovarianceProperty;
 class CovarianceVisual : public rviz::Object
 {
 public:
-  enum BryanAngle
+  enum ShapeIndex
   {
     kRoll=0,
     kPitch=1,
-    kYaw=2
+    kYaw=2,
+    kYaw2D=3,
+    kNumOriShapes
   };
 
 private:
@@ -105,10 +108,16 @@ public:
   virtual const Ogre::Quaternion& getPositionCovarianceOrientation();
 
   /**
-   * \brief Get the scene node the frame this covariance is defined
-   * @return the scene node associated with frame this covariance is defined
+   * \brief Get the root scene node of the position part of this covariance
+   * @return the root scene node of the position part of this covariance
    */
-  Ogre::SceneNode* getSceneNode() { return root_node_; }
+  Ogre::SceneNode* getPositionSceneNode() { return position_scale_node_; }
+
+  /**
+   * \brief Get the root scene node of the orientation part of this covariance
+   * @return the root scene node of the orientation part of this covariance
+   */
+  Ogre::SceneNode* getOrientationSceneNode() { return orientation_scale_node_; }
 
   /**
    * \brief Get the shape used to display position covariance
@@ -120,12 +129,19 @@ public:
    * \brief Get the shape used to display orientation covariance in an especific axis
    * @return the shape used to display orientation covariance in an especific axis
    */  
-  rviz::Shape* getOrientationShape(BryanAngle angle);
+  rviz::Shape* getOrientationShape(ShapeIndex index);
 
   /**
    * \brief Sets user data on all ogre objects we own
    */
   virtual void setUserData( const Ogre::Any& data );
+
+  /**
+   * \brief Sets visibility of this covariance
+   * 
+   * Convenience method that sets visibility of both position and orientation parts.
+   */
+  virtual void setVisible( bool visible );
 
   /**
    * \brief Sets visibility of the position part of this covariance
@@ -154,7 +170,8 @@ public:
 
 private:
   void updatePosition( const Eigen::Matrix6d& covariance );
-  void updateOrientation( const Eigen::Matrix6d& covariance, BryanAngle angle );
+  void updateOrientation( const Eigen::Matrix6d& covariance, ShapeIndex index );
+  void updateOrientationVisibility();
 
   Ogre::SceneNode* root_node_;
   Ogre::SceneNode* fixed_orientation_node_;
@@ -162,13 +179,17 @@ private:
   Ogre::SceneNode* position_node_;
 
   Ogre::SceneNode* orientation_scale_node_;
-  Ogre::SceneNode* orientation_offset_node_[3];
-  Ogre::SceneNode* orientation_node_[3];
+  Ogre::SceneNode* orientation_offset_node_[kNumOriShapes];
+  Ogre::SceneNode* orientation_node_[kNumOriShapes];
 
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
-  rviz::Shape* orientation_shape_[3];   ///< Cylinders used for the orientation covariance
+  rviz::Shape* orientation_shape_[kNumOriShapes];   ///< Cylinders used for the orientation covariance
 
   bool local_rotation_;
+
+  bool pose_2d_;
+
+  bool orientation_visible_; ///< If the orientation component is visible.
 
 private:
   // Hide Object methods we don't want to expose
