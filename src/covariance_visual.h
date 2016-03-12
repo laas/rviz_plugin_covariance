@@ -62,7 +62,7 @@ private:
    * @param pos_scale Scale of the position covariance
    * @param ori_scale Scale of the orientation covariance
    */
-  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_local_rotation, bool is_visible = true, float pos_scale = 1.0f, float ori_scale = 0.1f);
+  CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_local_rotation, bool is_visible = true, float pos_scale = 1.0f, float ori_scale = 0.1f, float ori_offset = 0.1f);
 public:
   virtual ~CovarianceVisual();
 
@@ -74,6 +74,7 @@ public:
    */
   void setScales( float pos_scale, float ori_scale);
   void setPositionScale( float pos_scale );
+  void setOrientationOffset( float ori_offset );
   void setOrientationScale( float ori_scale );
 
   /**
@@ -117,7 +118,7 @@ public:
    * \brief Get the root scene node of the orientation part of this covariance
    * @return the root scene node of the orientation part of this covariance
    */
-  Ogre::SceneNode* getOrientationSceneNode() { return orientation_scale_node_; }
+  Ogre::SceneNode* getOrientationSceneNode() { return orientation_root_node_; }
 
   /**
    * \brief Get the shape used to display position covariance
@@ -178,9 +179,9 @@ private:
   Ogre::SceneNode* position_scale_node_;
   Ogre::SceneNode* position_node_;
 
-  Ogre::SceneNode* orientation_scale_node_;
+  Ogre::SceneNode* orientation_root_node_;
   Ogre::SceneNode* orientation_offset_node_[kNumOriShapes];
-  Ogre::SceneNode* orientation_node_[kNumOriShapes];
+  Ogre::SceneNode* orientation_scale_node_[kNumOriShapes];
 
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
   rviz::Shape* orientation_shape_[kNumOriShapes];   ///< Cylinders used for the orientation covariance

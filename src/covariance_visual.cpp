@@ -20,7 +20,7 @@ double deg2rad (double degrees) {
     return degrees * 4.0 * atan (1.0) / 180.0;
 }
 
-CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_local_rotation, bool is_visible, float pos_scale, float ori_scale)
+CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_local_rotation, bool is_visible, float pos_scale, float ori_scale, float ori_offset)
 : Object( scene_manager ), local_rotation_(is_local_rotation), pose_2d_(false), orientation_visible_(is_visible)
 {
   // Main node of the visual
@@ -36,22 +36,23 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
   // Node to scale the orientation part of the covariance. May be attached to both the local (root) node or the fixed frame node.
   // May be re-attached later by setRotatingFrame()
   if(local_rotation_)
-    orientation_scale_node_ = root_node_->createChildSceneNode();
+    orientation_root_node_ = root_node_->createChildSceneNode();
   else
-    orientation_scale_node_ = fixed_orientation_node_->createChildSceneNode();
+    orientation_root_node_ = fixed_orientation_node_->createChildSceneNode();
 
   for(int i = 0; i < kNumOriShapes; i++)
   {
     // Node to position and orient the shape along the axis. One for each axis.
-    orientation_offset_node_[i] = orientation_scale_node_->createChildSceneNode();
+    orientation_offset_node_[i] = orientation_root_node_->createChildSceneNode();
     // Does not inherit scale from the parent. This is needed to keep the cylinders with the same height. The scale is set by setOrientationScale()
     orientation_offset_node_[i]->setInheritScale( false );
     // Node to be oriented and scaled by the message's covariance. One for each axis.
-    orientation_node_[i] = orientation_offset_node_[i]->createChildSceneNode();
+    orientation_scale_node_[i] = orientation_offset_node_[i]->createChildSceneNode();
+
     if(i != kYaw2D)
-      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_node_[i]);
+      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_scale_node_[i]);
     else
-      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_node_[i]);
+      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_scale_node_[i]);
   }
 
   // Position the cylindes at position 1.0 in the respective axis, and perpendicular to the axis.
@@ -82,6 +83,7 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
   root_node_->setVisible( true );
   setVisible( is_visible );
   setScales( pos_scale, ori_scale );
+  setOrientationOffset( ori_offset );
 }
 
 CovarianceVisual::~CovarianceVisual()
@@ -92,7 +94,7 @@ CovarianceVisual::~CovarianceVisual()
   for(int i = 0; i < kNumOriShapes; i++)
   {
     delete orientation_shape_[i];
-    scene_manager_->destroySceneNode( orientation_node_[i]->getName() );
+    scene_manager_->destroySceneNode( orientation_scale_node_[i]->getName() );
     scene_manager_->destroySceneNode( orientation_offset_node_[i]->getName() );
   }
 
@@ -357,9 +359,9 @@ void CovarianceVisual::updateOrientation( const Eigen::Matrix6d& covariance, Sha
   }
 
   // Rotate and scale the scene node of the orientation part
-  orientation_node_[index]->setOrientation(shape_orientation);
+  orientation_shape_[index]->setOrientation(shape_orientation);
   if(!shape_scale.isNaN())
-      orientation_node_[index]->setScale(shape_scale);
+      orientation_shape_[index]->setScale(shape_scale);
   else
       ROS_WARN_STREAM("orientation shape_scale contains NaN: " << shape_scale);
 }
@@ -378,22 +380,42 @@ void CovarianceVisual::setPositionScale( float pos_scale )
     position_scale_node_->setScale( pos_scale, pos_scale, pos_scale );
 }
 
-void CovarianceVisual::setOrientationScale( float ori_scale )
+void CovarianceVisual::setOrientationOffset( float ori_offset )
 {
-  // Scale the orientation scale node to position the shapes along the axis
-  orientation_scale_node_->setScale( ori_scale, ori_scale, ori_scale );
-  // The scale along the flatten out dimension is always 1.0
+  // Scale the orientation root node to position the shapes along the axis
+  orientation_root_node_->setScale( ori_offset, ori_offset, ori_offset );
+  // The scale the offset_nodes as well so the displayed shape represents a 1-sigma 
+  // standard deviation when displayed with an scale of 1.0
+  // NOTE: We only want to change the scales of the dimentions that represent the 
+  //       orientation covariance. The other dimensions are set to 1.0.
   for(int i = 0; i < kNumOriShapes; i++)
   {
     if(i == kYaw2D)
     {
-      // To proper flat the cone in the 2D case we flat out along z
-      orientation_offset_node_[i]->setScale( ori_scale, ori_scale, 1.0 );
+      // For 2D, the angle is only encoded on x, but we also scale on y to put the top of the cone at the pose origin
+      orientation_offset_node_[i]->setScale( ori_offset, ori_offset, 1.0 );
     }
     else
     {
-      // For the cylinder in 3D case is the y-axis
-      orientation_offset_node_[i]->setScale( ori_scale, 1.0, ori_scale );
+      // For 3D, the angle covariance is encoded on x and z dimensions
+      orientation_offset_node_[i]->setScale( ori_offset, 1.0, ori_offset );
+    }
+  }
+}
+
+void CovarianceVisual::setOrientationScale( float ori_scale )
+{
+  for(int i = 0; i < kNumOriShapes; i++)
+  {
+    if(i == kYaw2D)
+    {
+      // Changes in scale in 2D only affects the x dimension, which is the one defining the angle
+      orientation_scale_node_[i]->setScale( ori_scale, 1.0, 1.0 );
+    }
+    else
+    {
+      // Changes in scale in 3D only affects the x and z dimensions, which is the one defining the angle covariance in one axis
+      orientation_scale_node_[i]->setScale( ori_scale, 1.0, ori_scale );
     }
   }
 }
@@ -502,9 +524,9 @@ void CovarianceVisual::setRotatingFrame( bool is_local_rotation )
   local_rotation_ = is_local_rotation;
 
   if(local_rotation_)
-    root_node_->addChild( fixed_orientation_node_->removeChild( orientation_scale_node_->getName() ) );
+    root_node_->addChild( fixed_orientation_node_->removeChild( orientation_root_node_->getName() ) );
   else
-    fixed_orientation_node_->addChild( root_node_->removeChild( orientation_scale_node_->getName() ) );
+    fixed_orientation_node_->addChild( root_node_->removeChild( orientation_root_node_->getName() ) );
 
 }
 
