@@ -22,7 +22,7 @@ yaw = pi/2
 axes = 'sxyz' # 'sxyz' or 'rxyz'
 
 ori_deviation = pi/6.0;
-
+ori_deviation2 = pi/18.0;
 
 while not rospy.is_shutdown():
 
@@ -41,9 +41,9 @@ while not rospy.is_shutdown():
    odo.pose.covariance[0+0*6] = 0.2+(abs(y)/2.5);
    odo.pose.covariance[1+1*6] = 0.2;
    odo.pose.covariance[2+2*6] = 0.2;
-   odo.pose.covariance[3+3*6] = 0.1;
-   odo.pose.covariance[4+4*6] = 0.1;
-   odo.pose.covariance[5+5*6] = 0.1;
+   odo.pose.covariance[3+3*6] = ori_deviation2**2.0
+   odo.pose.covariance[4+4*6] = ori_deviation2**2.0
+   odo.pose.covariance[5+5*6] = ori_deviation**2.0
 
    br.sendTransform((odo.pose.pose.position.x, odo.pose.pose.position.y, odo.pose.pose.position.z),
       (odo.pose.pose.orientation.x,odo.pose.pose.orientation.y,odo.pose.pose.orientation.z,odo.pose.pose.orientation.w),
