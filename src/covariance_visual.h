@@ -9,6 +9,7 @@
 
 #include <Eigen/Dense>
 
+#include <OgreVector3.h>
 #include <OgreColourValue.h>
 
 namespace Ogre
@@ -181,7 +182,6 @@ private:
 
   Ogre::SceneNode* orientation_root_node_;
   Ogre::SceneNode* orientation_offset_node_[kNumOriShapes];
-  Ogre::SceneNode* orientation_scale_node_[kNumOriShapes];
 
   rviz::Shape* position_shape_;   ///< Ellipse used for the position covariance
   rviz::Shape* orientation_shape_[kNumOriShapes];   ///< Cylinders used for the orientation covariance
@@ -191,6 +191,9 @@ private:
   bool pose_2d_;
 
   bool orientation_visible_; ///< If the orientation component is visible.
+
+  Ogre::Vector3 current_ori_scale_[kNumOriShapes];
+  float current_ori_scale_factor_;
 
 private:
   // Hide Object methods we don't want to expose

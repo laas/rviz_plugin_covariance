@@ -4,7 +4,6 @@
 
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
-#include <OgreVector3.h>
 #include <OgreQuaternion.h>
 
 #include <ros/console.h>
@@ -46,13 +45,11 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
     orientation_offset_node_[i] = orientation_root_node_->createChildSceneNode();
     // Does not inherit scale from the parent. This is needed to keep the cylinders with the same height. The scale is set by setOrientationScale()
     orientation_offset_node_[i]->setInheritScale( false );
-    // Node to be oriented and scaled by the message's covariance. One for each axis.
-    orientation_scale_node_[i] = orientation_offset_node_[i]->createChildSceneNode();
 
     if(i != kYaw2D)
-      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_scale_node_[i]);
+      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_offset_node_[i]);
     else
-      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_scale_node_[i]);
+      orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_offset_node_[i]);
   }
 
   // Position the cylindes at position 1.0 in the respective axis, and perpendicular to the axis.
@@ -94,7 +91,6 @@ CovarianceVisual::~CovarianceVisual()
   for(int i = 0; i < kNumOriShapes; i++)
   {
     delete orientation_shape_[i];
-    scene_manager_->destroySceneNode( orientation_scale_node_[i]->getName() );
     scene_manager_->destroySceneNode( orientation_offset_node_[i]->getName() );
   }
 
@@ -319,14 +315,18 @@ void CovarianceVisual::updateOrientation( const Eigen::Matrix6d& covariance, Sha
     assert(index == kYaw2D);
     // 2D poses only depend on yaw.
     shape_scale.x = 2.0*sqrt(covariance(5,5));
-    // The the covariance is equivalent to twice the standard deviation _in radians_.
-    // So we need to convert it to the linear scale of the shape using tan().
-    // Also, we bound the maximum std to 85 deg.
-    radianScaleToMetricScaleBounded(shape_scale.x);
     // To display the cone shape properly the scale along y-axis has to be one.
     shape_scale.y = 1.0;
     // Give a minimal height for the cone for better visualization
     shape_scale.z = 0.001;
+    // Store the computed scale to be used if the user change the scale
+    current_ori_scale_[index] = shape_scale;
+    // Apply the current scale factor
+    shape_scale.x *= current_ori_scale_factor_;
+    // The scale on x means twice the standard deviation, but _in radians_.
+    // So we need to convert it to the linear scale of the shape using tan().
+    // Also, we bound the maximum std to 85 deg.
+    radianScaleToMetricScaleBounded(shape_scale.x);
   }
   else
   {
@@ -349,13 +349,18 @@ void CovarianceVisual::updateOrientation( const Eigen::Matrix6d& covariance, Sha
 
     // NOTE: The cylinder mesh is oriented along its y axis, thus we want to flat it out into the XZ plane
     computeShapeScaleAndOrientation2D(covarianceAxis, shape_scale, shape_orientation, XZ_PLANE);
+    // Give a minimal height for the cylinder for better visualization
+    shape_scale.y = 0.001;    
+    // Store the computed scale to be used if the user change the scale
+    current_ori_scale_[index] = shape_scale;
+    // Apply the current scale factor
+    shape_scale.x *= current_ori_scale_factor_;
+    shape_scale.z *= current_ori_scale_factor_;
     // The computed scale is equivalent to twice the standard deviation _in radians_.
     // So we need to convert it to the linear scale of the shape using tan().
     // Also, we bound the maximum std to 85 deg.
     radianScaleToMetricScaleBounded(shape_scale.x);
     radianScaleToMetricScaleBounded(shape_scale.z);
-    // Give a minimal height for the cylinder for better visualization
-    shape_scale.y = 0.001;    
   }
 
   // Rotate and scale the scene node of the orientation part
@@ -405,18 +410,34 @@ void CovarianceVisual::setOrientationOffset( float ori_offset )
 
 void CovarianceVisual::setOrientationScale( float ori_scale )
 {
+  // Here we update the current scale factor, apply it to the current scale _in radians_, 
+  // convert it to meters and apply to the shape scale. Note we have different invariant
+  // scales in the 3D and in 2D.
+  current_ori_scale_factor_ = ori_scale;
   for(int i = 0; i < kNumOriShapes; i++)
   {
+    // Recover the last computed scale
+    Ogre::Vector3 shape_scale = current_ori_scale_[i];
     if(i == kYaw2D)
     {
-      // Changes in scale in 2D only affects the x dimension, which is the one defining the angle
-      orientation_scale_node_[i]->setScale( ori_scale, 1.0, 1.0 );
+      // Changes in scale in 2D only affects the x dimension
+      // Apply the current scale factor
+      shape_scale.x *= current_ori_scale_factor_;
+      // Convert from radians to meters
+      radianScaleToMetricScaleBounded(shape_scale.x);
     }
     else
     {
-      // Changes in scale in 3D only affects the x and z dimensions, which is the one defining the angle covariance in one axis
-      orientation_scale_node_[i]->setScale( ori_scale, 1.0, ori_scale );
+      // Changes in scale in 3D only affects the x and z dimensions
+      // Apply the current scale factor
+      shape_scale.x *= current_ori_scale_factor_;
+      shape_scale.z *= current_ori_scale_factor_;
+      // Convert from radians to meters
+      radianScaleToMetricScaleBounded(shape_scale.x);
+      radianScaleToMetricScaleBounded(shape_scale.z);
     }
+  // Apply the new scale
+  orientation_shape_[i]->setScale(shape_scale);
   }
 }
 

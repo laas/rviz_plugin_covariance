@@ -70,7 +70,7 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   position_alpha_property_->setMax( 1 );
   
   position_scale_property_ = new FloatProperty( "Scale", 1.0f,
-                                             "Scale factor to be applied to covariance ellipse",
+                                             "Scale factor to be applied to covariance ellipse. Corresponds to the number of standard deviations to display",
                                              position_property_, SLOT( updateColorAndAlphaAndScaleAndOffset() ), this );
   position_scale_property_->setMin( 0 );
 
@@ -105,7 +105,7 @@ CovarianceProperty::CovarianceProperty( const QString& name,
   orientation_offset_property_->setMin( 0 );
 
   orientation_scale_property_ = new FloatProperty( "Scale", 1.0f,
-                                             "Scale factor to be applied to orientation covariance shapes. A scale of 1.0 corresponds to one standard deviation, but there is no correspondence between other scales and standard deviations.",
+                                             "Scale factor to be applied to orientation covariance shapes. Corresponds to the number of standard deviations to display",
                                              orientation_property_, SLOT( updateColorAndAlphaAndScaleAndOffset() ), this );
   orientation_scale_property_->setMin( 0 );
 
