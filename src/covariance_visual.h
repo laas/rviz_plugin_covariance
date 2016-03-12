@@ -195,6 +195,8 @@ private:
   Ogre::Vector3 current_ori_scale_[kNumOriShapes];
   float current_ori_scale_factor_;
 
+  const static float max_degrees;
+
 private:
   // Hide Object methods we don't want to expose
   // NOTE: Apparently we still need to define them...

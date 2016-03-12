@@ -19,6 +19,8 @@ double deg2rad (double degrees) {
     return degrees * 4.0 * atan (1.0) / 180.0;
 }
 
+const float CovarianceVisual::max_degrees = 89.0;
+
 CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* parent_node, bool is_local_rotation, bool is_visible, float pos_scale, float ori_scale, float ori_offset)
 : Object( scene_manager ), local_rotation_(is_local_rotation), pose_2d_(false), orientation_visible_(is_visible)
 {
@@ -233,10 +235,10 @@ void computeShapeScaleAndOrientation2D(const Eigen::Matrix2d& covariance, Ogre::
   }
 }
 
-void radianScaleToMetricScaleBounded(Ogre::Real & radian_scale)
+void radianScaleToMetricScaleBounded(Ogre::Real & radian_scale, float max_degrees)
 {
   radian_scale /= 2.0;
-  if(radian_scale > deg2rad(85.0)) radian_scale = deg2rad(85.0);
+  if(radian_scale > deg2rad(max_degrees)) radian_scale = deg2rad(max_degrees);
   radian_scale = 2.0 * tan(radian_scale);
 }
 
@@ -325,8 +327,8 @@ void CovarianceVisual::updateOrientation( const Eigen::Matrix6d& covariance, Sha
     shape_scale.x *= current_ori_scale_factor_;
     // The scale on x means twice the standard deviation, but _in radians_.
     // So we need to convert it to the linear scale of the shape using tan().
-    // Also, we bound the maximum std to 85 deg.
-    radianScaleToMetricScaleBounded(shape_scale.x);
+    // Also, we bound the maximum std
+    radianScaleToMetricScaleBounded(shape_scale.x, max_degrees);
   }
   else
   {
@@ -358,9 +360,9 @@ void CovarianceVisual::updateOrientation( const Eigen::Matrix6d& covariance, Sha
     shape_scale.z *= current_ori_scale_factor_;
     // The computed scale is equivalent to twice the standard deviation _in radians_.
     // So we need to convert it to the linear scale of the shape using tan().
-    // Also, we bound the maximum std to 85 deg.
-    radianScaleToMetricScaleBounded(shape_scale.x);
-    radianScaleToMetricScaleBounded(shape_scale.z);
+    // Also, we bound the maximum std.
+    radianScaleToMetricScaleBounded(shape_scale.x, max_degrees);
+    radianScaleToMetricScaleBounded(shape_scale.z, max_degrees);
   }
 
   // Rotate and scale the scene node of the orientation part
@@ -424,7 +426,7 @@ void CovarianceVisual::setOrientationScale( float ori_scale )
       // Apply the current scale factor
       shape_scale.x *= current_ori_scale_factor_;
       // Convert from radians to meters
-      radianScaleToMetricScaleBounded(shape_scale.x);
+      radianScaleToMetricScaleBounded(shape_scale.x, max_degrees);
     }
     else
     {
@@ -433,8 +435,8 @@ void CovarianceVisual::setOrientationScale( float ori_scale )
       shape_scale.x *= current_ori_scale_factor_;
       shape_scale.z *= current_ori_scale_factor_;
       // Convert from radians to meters
-      radianScaleToMetricScaleBounded(shape_scale.x);
-      radianScaleToMetricScaleBounded(shape_scale.z);
+      radianScaleToMetricScaleBounded(shape_scale.x, max_degrees);
+      radianScaleToMetricScaleBounded(shape_scale.z, max_degrees);
     }
   // Apply the new scale
   orientation_shape_[i]->setScale(shape_scale);
