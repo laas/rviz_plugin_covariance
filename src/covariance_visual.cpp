@@ -200,6 +200,9 @@ CovarianceVisual::CovarianceVisual( Ogre::SceneManager* scene_manager, Ogre::Sce
       orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cylinder, scene_manager_, orientation_offset_node_[i]);
     else
       orientation_shape_[i] = new rviz::Shape(rviz::Shape::Cone, scene_manager_, orientation_offset_node_[i]);
+
+    // Initialize all current scales to 0
+    current_ori_scale_[i] = Ogre::Vector3(0,0,0);
   }
 
   // Position the cylindes at position 1.0 in the respective axis, and perpendicular to the axis.
