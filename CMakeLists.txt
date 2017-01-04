@@ -5,20 +5,38 @@ catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
 
-find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
-include(${QT_USE_FILE})
+if (rviz_QT_VERSION VERSION_GREATER "5.0.0")
+  find_package(Qt5Core)
+  find_package(Qt5Gui)
+
+  include_directories(${Qt5Core_INCLUDE_DIRS} ${Qt5Gui_INCLUDE_DIRS})
+  
+  set(QT_LIBRARIES ${Qt5Core_LIBRARIES} ${Qt5Gui_LIBRARIES})
+
+  qt5_wrap_cpp(MOC_FILES
+    src/pose_with_covariance_display.h
+    src/odometry_display.h
+    src/covariance_visual.h
+    src/covariance_property.h
+  )
+
+else()
+  find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
+  include(${QT_USE_FILE})
+
+  qt4_wrap_cpp(MOC_FILES
+    src/pose_with_covariance_display.h
+    src/odometry_display.h
+    src/covariance_visual.h
+    src/covariance_property.h
+  )
+
+endif()
 
 find_package(Eigen REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIR})
 
 add_definitions(-DQT_NO_KEYWORDS)
-
-qt4_wrap_cpp(MOC_FILES
-  src/pose_with_covariance_display.h
-  src/odometry_display.h
-  src/covariance_visual.h
-  src/covariance_property.h
-)
 
 set(SOURCE_FILES
   src/covariance_visual.cpp
